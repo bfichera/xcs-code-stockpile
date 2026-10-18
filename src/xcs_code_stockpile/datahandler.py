@@ -25,5 +25,5 @@ def load_smalldata(run_number: int, proposal_number: int, **h5_kws):
     """Returns the h5py.File object associated with a certain run"""
     root = Path('/sdf/data/lcls/ds/xcs')
     path = (root / f'xcs{proposal_number}/hdf5/smalldata/'
-            'xcs{proposal_number}_Run{run_number:04d}.h5')
+            f'xcs{proposal_number}_Run{run_number:04d}.h5')
     return h5py.File(path, 'r', **h5_kws)

@@ -6,7 +6,7 @@ from .datahandler import H5Dictionary
 from ._utils import parsed_roi
 
 
-def _twotime(stack, denominator_type='mean'):
+def _twotime(stack: np.ndarray, denominator_type: str = 'mean'):
     if denominator_type not in ['mean', 'std']:
         raise NotImplementedError(
             f'Denominator type {denominator_type} not implemented')
@@ -21,10 +21,10 @@ def _twotime(stack, denominator_type='mean'):
     return numerator / denominator
 
 
-def _g2_minus_one(twotime, denominator_type='mean'):
+def _g2_minus_one(twotime: np.ndarray, denominator_type: str = 'mean'):
     return np.array([
         np.mean(np.diagonal(twotime, offset=i)) if i != 0 else np.nan
-        for i in twotime.shape
+        for i in range(twotime.shape[0])
     ])
 
 
@@ -32,12 +32,14 @@ def _g2_minus_one(twotime, denominator_type='mean'):
 def calc_static_correlation(h5: h5py.File,
                             h5dict: H5Dictionary,
                             metadata: pd.DataFrame,
-                            filter: np.ArrayLike,
-                            roi=None,
+                            filter: np.ndarray,
+                            roi: list[int, int, int, int] | tuple[slice, slice]
+                            | None = None,
                             denominator_type: str = 'mean',
                             ret_twotime: bool = False):
     metadata = metadata[filter]
     stack = h5[h5dict.stack][..., *roi]
+    stack = stack[metadata['shot_idx'].to_numpy(), ...]
     twotime = _twotime(stack, denominator_type=denominator_type)
     g2_minus_one = _g2_minus_one(twotime, denominator_type=denominator_type)
 

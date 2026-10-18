@@ -1,5 +1,5 @@
 from ._utils import parsed_roi
-from datahandler import H5Dictionary
+from .datahandler import H5Dictionary
 from dataclasses import asdict
 
 import h5py
@@ -19,19 +19,23 @@ def create_metadata(h5: h5py.File,
     dataframe."""
 
     keydict = asdict(h5dict)
-    d = {'run': run}
+    d = {}
     if 'stack' in keydict:
-        stack = h5[keydict.pop('stack')]
+        stack = h5[keydict.pop('stack')][..., *roi]
 
         if nan_policy == 'raise':
             _sum = np.sum
         elif nan_policy == 'ignore':
             _sum = np.nansum
+        else:
+            raise ValueError(f'Invalid nan_policy: {nan_policy}')
 
         intensity_in_roi = _sum(stack, axis=(-1, -2))
         d['intensity_in_roi'] = intensity_in_roi
     d['shot_idx'] = np.arange(stack.shape[0])
 
-    d.update({h5[v][...] for k, v in keydict.items()})
+    d.update({k: h5[v][...] for k, v in keydict.items()})
 
-    return pd.DataFrame(d)
+    metadata = pd.DataFrame(d)
+    metadata.attrs['run'] = run
+    return metadata

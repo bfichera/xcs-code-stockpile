@@ -18,13 +18,15 @@ def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
     y = metadata['intensity_in_roi'].to_numpy()
     model = LinearRegression()
     model.fit(X, y)
-    scaled_residual = (y - model.predict(X)) / X[:]
+    scaled_residual = (y - model.predict(X)) / X[:, 0]
     scaled_residual_minimum = np.percentile(scaled_residual,
                                             ratio_min_percentile)
     scaled_residual_maximum = np.percentile(scaled_residual,
                                             ratio_max_percentile)
-    filter = ((metadata['i0'] < i0_minimum) | (metadata['i0'] > i0_maximum) |
-              (scaled_residual < scaled_residual_minimum) |
-              (scaled_residual > scaled_residual_maximum))
+    filter = (metadata['xray_on'].astype(bool) &
+              (metadata['i0'] >= i0_minimum) &
+              (metadata['i0'] <= i0_maximum) &
+              (scaled_residual >= scaled_residual_minimum) &
+              (scaled_residual <= scaled_residual_maximum))
 
     return filter

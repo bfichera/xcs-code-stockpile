@@ -6,26 +6,31 @@ from ._utils import parsed_roi
 from .datahandler import H5Dictionary
 
 
-def _correlation_of_two_images(im1, im2, denominator_type='mean'):
+def _correlation_of_two_images(im1: np.ndarray,
+                               im2: np.ndarray,
+                               denominator_type: str = 'mean'):
     if denominator_type == 'mean':
         return np.mean(im1 * im2) / np.mean(im1) / np.mean(im2)
     elif denominator_type == 'std':
         return np.mean(im1 * im2) / np.std(im1) / np.std(im2)
+    raise NotImplementedError(
+        f'Denominator type {denominator_type} not implemented')
 
 
 @parsed_roi
 def _strong_reversibility_diffcorr(h5: h5py.File,
                                    h5dict: H5Dictionary,
                                    metadata: pd.DataFrame,
-                                   filter: np.ArrayLike,
+                                   filter: np.ndarray,
                                    delay_bin_interval: float,
                                    labtime_bin_interval: float,
-                                   roi=None,
+                                   roi: list[int, int, int, int]
+                                   | tuple[slice, slice] | None = None,
                                    denominator_type: str = 'mean'):
     delay = metadata['delay'].to_numpy()
     _bins = np.arange(delay.min(),
                       delay.max() + delay_bin_interval / 2, delay_bin_interval)
-    delay_bins = pd.cut(metadata[h5dict.delay],
+    delay_bins = pd.cut(metadata['delay'],
                         _bins,
                         right=False,
                         labels=_bins[:-1])
@@ -35,7 +40,7 @@ def _strong_reversibility_diffcorr(h5: h5py.File,
     _bins = np.arange(labtime.min(),
                       labtime.max() + labtime_bin_interval / 2,
                       labtime_bin_interval)
-    labtime_bins = pd.cut(metadata[h5dict.labtime],
+    labtime_bins = pd.cut(metadata['event_time'],
                           _bins,
                           right=False,
                           labels=_bins[:-1])
@@ -47,12 +52,12 @@ def _strong_reversibility_diffcorr(h5: h5py.File,
     # then we combine the diffcorrs by averaging
 
     def diffcorr_of_labtime_bin(group):
-        off_shots_idx = group[~group['laser_on']].index
+        off_shots_idx = group.loc[~group['laser_on'], 'shot_idx'].to_numpy()
         off_shots = stack[off_shots_idx, ...]
         mean_off_shot = np.mean(off_shots, axis=0)
 
         def diffcorr_of_delay_bin(dgroup):
-            on_shots_idx = dgroup[dgroup['laser_on']]
+            on_shots_idx = dgroup.loc[dgroup['laser_on'], 'shot_idx'].to_numpy()
             on_shots = stack[on_shots_idx, ...]
             mean_on_shot = np.mean(on_shots, axis=0)
             return _correlation_of_two_images(
@@ -60,7 +65,7 @@ def _strong_reversibility_diffcorr(h5: h5py.File,
 
         return group.groupby('delay_bin').apply(diffcorr_of_delay_bin)
 
-    diffcorrs = metadata.groupby('labtime').apply(
+    diffcorrs = metadata.groupby('labtime_bin').apply(
         diffcorr_of_labtime_bin).reset_index()
     mean_diffcorr = diffcorrs.groupby('delay_bin')[0].agg('mean')
 
@@ -71,15 +76,16 @@ def _strong_reversibility_diffcorr(h5: h5py.File,
 def _weak_reversibility_diffcorr(h5: h5py.File,
                                  h5dict: H5Dictionary,
                                  metadata: pd.DataFrame,
-                                 filter: np.ArrayLike,
+                                 filter: np.ndarray,
                                  delay_bin_interval: float,
                                  labtime_bin_interval: float,
-                                 roi=None,
+                                 roi: list[int, int, int, int]
+                                 | tuple[slice, slice] | None = None,
                                  denominator_type: str = 'mean'):
     delay = metadata['delay'].to_numpy()
     _bins = np.arange(delay.min(),
                       delay.max() + delay_bin_interval / 2, delay_bin_interval)
-    delay_bins = pd.cut(metadata[h5dict.delay],
+    delay_bins = pd.cut(metadata['delay'],
                         _bins,
                         right=False,
                         labels=_bins[:-1])
@@ -89,7 +95,7 @@ def _weak_reversibility_diffcorr(h5: h5py.File,
     _bins = np.arange(labtime.min(),
                       labtime.max() + labtime_bin_interval / 2,
                       labtime_bin_interval)
-    labtime_bins = pd.cut(metadata[h5dict.labtime],
+    labtime_bins = pd.cut(metadata['event_time'],
                           _bins,
                           right=False,
                           labels=_bins[:-1])
@@ -110,10 +116,10 @@ def _weak_reversibility_diffcorr(h5: h5py.File,
             return _correlation_of_two_images(
                 im, mean_off_shot, denominator_type=denominator_type)
 
-        return group[group['laser_on']].apply(diffcorr_of_shot).groupb(
-            'delay_bin').agg('mean')
+        return group[group['laser_on']].apply(
+            diffcorr_of_shot, axis=1).groupby(group['delay_bin']).agg('mean')
 
-    diffcorrs = metadata.groupby('labtime').apply(
+    diffcorrs = metadata.groupby('labtime_bin').apply(
         diffcorr_of_labtime_bin).reset_index()
     mean_diffcorr = diffcorrs.groupby('delay_bin')[0].agg('mean')
 
@@ -123,14 +129,15 @@ def _weak_reversibility_diffcorr(h5: h5py.File,
 def _none_reversibility_diffcorr(h5: h5py.File,
                                  h5dict: H5Dictionary,
                                  metadata: pd.DataFrame,
-                                 filter: np.ArrayLike,
+                                 filter: np.ndarray,
                                  delay_bin_interval: float,
-                                 roi=None,
+                                 roi: list[int, int, int, int]
+                                 | tuple[slice, slice] | None = None,
                                  denominator_type: str = 'mean'):
     delay = metadata['delay'].to_numpy()
     _bins = np.arange(delay.min(),
                       delay.max() + delay_bin_interval / 2, delay_bin_interval)
-    delay_bins = pd.cut(metadata[h5dict.delay],
+    delay_bins = pd.cut(metadata['delay'],
                         _bins,
                         right=False,
                         labels=_bins[:-1])
@@ -172,7 +179,7 @@ def _correlation_dispatcher(reversibility_type: str):
     elif reversibility_type == 'none':
         return _none_reversibility_diffcorr
     raise NotImplementedError(
-        'Reversibility type {reversibility_type} not implemented')
+        f'Reversibility type {reversibility_type} not implemented')
 
 
 def differential_correlation(reversibility_type: str, *args, **kwargs):
