@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xcs-code-stockpile"
+version = "0.1.0"
+description = "A collection of correlation calculations...and more! For the XCS hutch at LCLS"
+readme = "README.md"
+requires-python = ">=3.9"
