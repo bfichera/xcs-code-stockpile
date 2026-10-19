@@ -1,5 +1,6 @@
 from ._utils import parsed_roi
 from .datahandler import H5Dictionary
+from ._log import logger
 from dataclasses import asdict
 from typing import Optional, Union
 
@@ -10,13 +11,11 @@ import pandas as pd
 
 @parsed_roi
 def create_metadata(h5: h5py.File,
-                     run: int,
-                     h5dict: H5Dictionary,
-                     roi: Optional[Union[
-                         list[int], tuple[slice, slice]
-                     ]] = None,
-                     nan_policy: str = 'raise') -> pd.DataFrame:
-
+                    run: int,
+                    h5dict: H5Dictionary,
+                    roi: Optional[Union[list[int], tuple[slice,
+                                                         slice]]] = None,
+                    nan_policy: str = 'raise') -> pd.DataFrame:
     """Build per-shot metadata from a smalldata HDF5 file.
 
     Args:
@@ -58,10 +57,14 @@ def create_metadata(h5: h5py.File,
     d['shot_idx'] = np.arange(stack.shape[0])
 
     d.update({k: h5[v][...] for k, v in keydict.items()})
+    for k, v in keydict.items():
+        try:
+            d.update({k: h5[v][...]})
+        except KeyError:
+            logger.warning(f'Didn\'t find the key {k}...')
 
     metadata = pd.DataFrame(d)
-    metadata[['laser_on', 'xray_on']] = metadata[[
-        'laser_on', 'xray_on'
-    ]].astype(bool)
+    metadata[['laser_on', 'xray_on']] = metadata[['laser_on',
+                                                  'xray_on']].astype(bool)
     metadata.attrs['run'] = run
     return metadata
