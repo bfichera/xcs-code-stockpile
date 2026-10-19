@@ -8,7 +8,8 @@ from .trxrd import calc_trxrd_stats
 from .static_correlation import calc_static_correlation
 from .rocking import calc_rocking_stats
 from .sanity import (intensity_vs_i0, plot_i0_vs_time,
-                     plot_intensity_vs_i0, plot_intensity_vs_time)
+                     plot_intensity_vs_i0, plot_intensity_vs_time,
+                     plot_detector_image)
 
 __all__ = [
     'H5Dictionary',
@@ -23,4 +24,5 @@ __all__ = [
     'plot_intensity_vs_i0',
     'plot_i0_vs_time',
     'plot_intensity_vs_time',
+    'plot_detector_image',
 ]
