@@ -56,7 +56,6 @@ def create_metadata(h5: h5py.File,
     d['intensity_in_roi'] = intensity_in_roi
     d['shot_idx'] = np.arange(stack.shape[0])
 
-    d.update({k: h5[v][...] for k, v in keydict.items()})
     for k, v in keydict.items():
         try:
             d.update({k: h5[v][...]})
