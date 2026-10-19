@@ -79,6 +79,8 @@ def plot_intensity_vs_i0(
             label=fr'$R^2 = {r2:.2f}$')
     ax.set_title(f'Run {metadata.attrs["run"]:04d}')
     ax.legend()
+    ax.set_xlabel('i0')
+    ax.set_ylabel('intensity')
 
     return fig
 
@@ -107,6 +109,9 @@ def plot_i0_vs_time(
     ax.plot(time, i0, c='black')
     ax.set_title(f'Run {metadata.attrs["run"]:04d}')
 
+    ax.set_xlabel('event_time')
+    ax.set_ylabel('i0')
+
     return fig
 
 
@@ -133,6 +138,8 @@ def plot_intensity_vs_time(
     fig, ax = plt.subplots()
     ax.plot(time, i, c='black')
     ax.set_title(f'Run {metadata.attrs["run"]:04d}')
+    ax.set_xlabel('event_time')
+    ax.set_ylabel('intensity')
 
     return fig
 
@@ -155,6 +162,6 @@ def plot_detector_image(
     im = np.mean(h5[h5dict.stack][::samplerate, ...], axis=0)
     vmin = np.percentile(im, 1)
     vmax = np.percentile(im, 99)
-    plt.imshow(im, vmin, vmax)
-    plt.colorbar()
-    plt.show()
+    fig, ax = plt.subplots()
+    ax.imshow(im, vmin=vmin, vmax=vmax)
+    return fig
