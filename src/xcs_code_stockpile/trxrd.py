@@ -1,3 +1,5 @@
+from typing import Optional, Union
+
 import h5py
 import numpy as np
 import pandas as pd
@@ -16,11 +18,34 @@ def _fwhm_1d(a, center):
 @parsed_roi
 def calc_trxrd_stats(h5: h5py.File,
                      h5dict: H5Dictionary,
-                     metadata: pd.DataFrame,
-                     filter: np.ndarray,
-                     bin_interval: float,
-                     roi=None):
+                      metadata: pd.DataFrame,
+                      filter: np.ndarray,
+                      bin_interval: float,
+                      roi: Optional[Union[
+                          list[int], tuple[slice, slice]
+                      ]] = None) -> pd.DataFrame:
+
+    """Calculate delay-binned time-resolved diffraction statistics.
+
+    Args:
+        h5: Open HDF5 file containing the detector stack.
+        h5dict: Mapping whose ``stack`` field identifies the detector dataset.
+        metadata: Per-shot metadata containing ``shot_idx``, ``delay``, and
+            ``i0`` columns.
+        filter: Boolean array or Series selecting metadata rows.
+        bin_interval: Width of left-closed delay bins, in the same units as
+            the metadata ``delay`` column.
+        roi: Detector region as ``[x0, x1, y0, y1]`` or a
+            ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
+
+    Returns:
+        A DataFrame indexed by delay-bin left edge. Columns are
+        ``intensity_mean``, ``intensity_stderr``, ``com_i``, ``com_j``,
+        ``fwhm_i``, ``fwhm_j``, and ``n_shots``. Intensities are normalized by
+        mean ``i0``. Centers and moment-derived widths are ROI-relative pixels.
+    """
     # First we apply the filter
+
     metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()

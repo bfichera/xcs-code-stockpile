@@ -44,9 +44,36 @@ def calc_static_correlation(h5: h5py.File,
                             roi: Optional[Union[
                                 list[int], tuple[slice, slice]
                             ]] = None,
-                            denominator_type: str = 'mean',
-                            ret_twotime: bool = False):
+                             denominator_type: str = 'mean',
+                             ret_twotime: bool = False
+                             ) -> Union[np.ndarray,
+                                        tuple[np.ndarray, np.ndarray]]:
+    """Calculate an equilibrium correlation as a function of frame lag.
+
+    Args:
+        h5: Open HDF5 file containing the detector stack.
+        h5dict: Mapping whose ``stack`` field identifies the detector dataset.
+        metadata: Per-shot metadata containing a ``shot_idx`` column.
+        filter: Boolean array or Series selecting metadata rows.
+        roi: Detector region as ``[x0, x1, y0, y1]`` or a
+            ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
+        denominator_type: ``"mean"`` computes normalized intensity
+            correlation minus one; ``"std"`` computes Pearson correlation
+            across pixels.
+        ret_twotime: Return the two-time correlation matrix as well as its
+            diagonal averages.
+
+    Returns:
+        A one-dimensional NumPy array indexed by retained-frame lag. Element
+        zero is NaN. If `ret_twotime` is true, returns
+        ``(g2_minus_one, twotime)`` instead. Lag is retained-frame number, not
+        physical elapsed time.
+
+    Raises:
+        NotImplementedError: If `denominator_type` is unsupported.
+    """
     metadata = metadata[filter]
+
     # TODO
     # Correlation lag is retained frame number, not physical elapsed time.
     stack = h5[h5dict.stack][..., *roi]

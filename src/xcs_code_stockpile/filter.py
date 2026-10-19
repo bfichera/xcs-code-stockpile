@@ -4,13 +4,27 @@ import pandas as pd
 
 
 def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
-                    i0_maximum_percentile: float, ratio_min_percentile: float,
-                    ratio_max_percentile: float):
-    """This throws out all the shots where:
+                     i0_maximum_percentile: float, ratio_min_percentile: float,
+                     ratio_max_percentile: float) -> pd.Series:
 
-    - the x-ray was off
-    - the i0 was too low or too high
-    - the i-to-i0 ratio is not close enough to the linear regime
+    """Select finite X-ray shots in configurable intensity ranges.
+
+    A linear model of ROI intensity against ``i0`` is fitted to finite X-ray
+    shots. Selection then applies inclusive percentile limits to ``i0`` and to
+    the residual divided by ``i0``.
+
+    Args:
+        metadata: Per-shot metadata containing ``xray_on``, ``i0``, and
+            ``intensity_in_roi`` columns.
+        i0_minimum_percentile: Lower percentile for accepted ``i0`` values.
+        i0_maximum_percentile: Upper percentile for accepted ``i0`` values.
+        ratio_min_percentile: Lower percentile for scaled fit residuals.
+        ratio_max_percentile: Upper percentile for scaled fit residuals.
+
+    Returns:
+        A boolean Series aligned with `metadata`. False entries include X-ray
+        off shots, zero or non-finite ``i0``, non-finite ROI intensity, and
+        values outside the requested percentile ranges.
     """
     valid_input = (metadata['xray_on'] &
                    (metadata['i0'] != 0) &

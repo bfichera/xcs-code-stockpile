@@ -1,14 +1,23 @@
 import pandas as pd
 
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from sklearn.linear_model import LinearRegression
 import numpy as np
 
 
-def intensity_vs_i0(metadata: pd.DataFrame):
-    """Plot the intensity in an roi vs i0.
+def intensity_vs_i0(metadata: pd.DataFrame) -> pd.DataFrame:
+    """Fit pump-off ROI intensity as a linear function of incident intensity.
 
-    Does no filtering - drop rows from `metadata` first if you want"""
+    Args:
+        metadata: Metadata containing ``laser_on``, ``i0``, and
+            ``intensity_in_roi``. The function does not otherwise filter rows.
+
+    Returns:
+        A DataFrame with ``i0`` and ``intensity`` columns for pump-off shots.
+        Its attributes contain ``beta``, ``intercept``, and ``R^2`` from the
+        fitted linear model.
+    """
     metadata = metadata[~metadata['laser_on']]
     i0 = metadata['i0'].to_numpy()
     i = metadata['intensity_in_roi'].to_numpy()
@@ -26,10 +35,16 @@ def intensity_vs_i0(metadata: pd.DataFrame):
     return out
 
 
-def plot_intensity_vs_i0(metadata: pd.DataFrame):
-    """Plot the intensity in an roi vs i0.
+def plot_intensity_vs_i0(metadata: pd.DataFrame) -> Figure:
+    """Plot pump-off ROI intensity and its linear fit against ``i0``.
 
-    Does no filtering - drop rows from `metadata` first if you want"""
+    Args:
+        metadata: Metadata accepted by `intensity_vs_i0`, with a run number in
+            ``metadata.attrs["run"]``. The function does not filter rows.
+
+    Returns:
+        A new Matplotlib Figure. The caller is responsible for closing it.
+    """
     d = intensity_vs_i0(metadata)
     i = d['intensity']
     i0 = d['i0']
@@ -51,10 +66,16 @@ def plot_intensity_vs_i0(metadata: pd.DataFrame):
     return fig
 
 
-def plot_i0_vs_time(metadata: pd.DataFrame):
-    """Plot i0 vs time.
+def plot_i0_vs_time(metadata: pd.DataFrame) -> Figure:
+    """Plot incident intensity against event time.
 
-    Does no filtering - drop rows from `metadata` first if you want"""
+    Args:
+        metadata: Metadata containing ``i0`` and ``event_time``, with a run
+            number in ``metadata.attrs["run"]``. No filtering is applied.
+
+    Returns:
+        A new Matplotlib Figure. The caller is responsible for closing it.
+    """
     i0 = metadata['i0'].to_numpy()
     time = metadata['event_time'].to_numpy()
 
@@ -65,10 +86,17 @@ def plot_i0_vs_time(metadata: pd.DataFrame):
     return fig
 
 
-def plot_intensity_vs_time(metadata: pd.DataFrame):
-    """Plot intensity vs time.
+def plot_intensity_vs_time(metadata: pd.DataFrame) -> Figure:
+    """Plot integrated ROI intensity against event time.
 
-    Does no filtering - drop rows from `metadata` first if you want"""
+    Args:
+        metadata: Metadata containing ``intensity_in_roi`` and ``event_time``,
+            with a run number in ``metadata.attrs["run"]``. No filtering is
+            applied.
+
+    Returns:
+        A new Matplotlib Figure. The caller is responsible for closing it.
+    """
     i = metadata['intensity_in_roi'].to_numpy()
     time = metadata['event_time'].to_numpy()
 

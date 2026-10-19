@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import h5py
 import numpy as np
@@ -204,6 +204,31 @@ def _correlation_dispatcher(reversibility_type: str):
         f'Reversibility type {reversibility_type} not implemented')
 
 
-def differential_correlation(reversibility_type: str, *args, **kwargs):
+def differential_correlation(reversibility_type: str, *args: Any,
+                             **kwargs: Any) -> pd.Series:
+    """Calculate pump-on/pump-off correlation grouped by delay.
+
+    Args:
+        reversibility_type: Correlation strategy: ``"strong"``, ``"weak"``,
+            or ``"none"``.
+        *args: Positional arguments forwarded to the selected strategy. All
+            strategies accept ``h5, h5dict, metadata, filter,
+            delay_bin_interval``. Strong and weak strategies additionally
+            require ``labtime_bin_interval``.
+        **kwargs: Forwarded analysis options, including ``roi`` and
+            ``denominator_type``. ``roi`` accepts ``[x0, x1, y0, y1]`` or a
+            ``(row_slice, column_slice)`` tuple. ``denominator_type`` accepts
+            ``"mean"`` or ``"std"``.
+
+    Returns:
+        A Series containing mean correlations, indexed by the left edge of
+        each delay bin. Strong and weak strategies compare within lab-time
+        bins; the no-reversibility strategy compares each pump-on shot with
+        its most recent preceding pump-off shot.
+
+    Raises:
+        NotImplementedError: If a reversibility or denominator type is not
+            supported.
+    """
     _diffcorr_func = _correlation_dispatcher(reversibility_type)
     return _diffcorr_func(*args, **kwargs)

@@ -2,3 +2,5 @@ venv/
 *.pyc
 tests/plots/
 .DS_Store
+*.egg-info/
+site/

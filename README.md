@@ -3,6 +3,12 @@
 A collection of calculations of correlations, among others! For the XCS hutch at
 LCLS.
 
+Documentation, including usage guides and the API reference, is available at
+<https://bfichera.github.io/xcs-code-stockpile/>.
+
+To build the documentation locally, install the documentation dependencies with
+`python -m pip install -e ".[docs]"` and run `mkdocs serve`.
+
 ## Various definitions defined
 
 ### ROIs

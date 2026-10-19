@@ -16,3 +16,9 @@ dependencies = [
     "scikit-learn",
     "scipy",
 ]
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
