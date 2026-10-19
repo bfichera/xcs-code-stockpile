@@ -2,21 +2,19 @@
 
 ## Installation
 
-The package currently targets Python 3.9 and later. Install it from a local checkout:
+The package currently targets Python 3.9 and later. Install it by cloning the repository and running:
 
 ```bash
 python -m pip install .
 ```
 
-For development and documentation work, install the optional documentation dependencies:
+Alternatively, to use it with `s3df`, use a custom jupyter image (conda environment) with the following in the "commands to initiate jupyter" box:
 
 ```bash
-python -m pip install -e ".[docs]"
+source /sdf/data/lcls/ds/xcs/xcs101927227/results/bfichera/bryans-psconda.sh
 ```
 
 ## Open a smalldata file
-
-At LCLS, `load_smalldata` constructs the standard XCS smalldata path from the proposal and run numbers. It returns an open `h5py.File`; use it as a context manager so it is closed after analysis.
 
 ```python
 import xcs_code_stockpile as xcs
@@ -42,15 +40,15 @@ If your HDF5 paths differ from the defaults, pass them when constructing `H5Dict
 
 ```python
 h5dict = xcs.H5Dictionary(
-    i0="/diagnostics/i0",
-    stack="/detector/roi",
-    delay="/timing/delay",
+    i0="/.../...",
+    stack="/.../...",
+    delay="/.../...",
 )
 ```
 
 ## Create and filter metadata
 
-`create_metadata` reads the one-dimensional shot fields and computes integrated detector intensity for each shot. The resulting DataFrame keeps the original HDF5 stack row in `shot_idx`.
+`create_metadata` makes a pandas dataframe with a column for everything in `h5dict`. Each row is a different shot, where the index of the frame in the stack is in a column called `shot_idx`.
 
 ```python
 roi = (slice(100, 200), slice(300, 400))
@@ -73,15 +71,3 @@ The percentile arguments are in the inclusive range normally used by `numpy.perc
 - Use [`differential_correlation`](reference/correlations.md#xcs_code_stockpile.differential_correlation) for pump-probe correlations.
 - Use [`calc_trxrd_stats`](reference/diffraction.md#xcs_code_stockpile.calc_trxrd_stats) for delay-binned diffraction statistics.
 - Use [`calc_rocking_stats`](reference/diffraction.md#xcs_code_stockpile.calc_rocking_stats) for scans grouped by angle or another scan variable.
-
-## Build these docs locally
-
-```bash
-mkdocs serve
-```
-
-Open `http://127.0.0.1:8000` for live-reloading documentation. To perform the same strict build used in CI:
-
-```bash
-mkdocs build --strict
-```

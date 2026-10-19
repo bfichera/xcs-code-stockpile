@@ -2,10 +2,13 @@ from typing import Optional, Union
 
 import pandas as pd
 
+import h5py
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from sklearn.linear_model import LinearRegression
 import numpy as np
+
+from .datahandler import H5Dictionary
 
 
 def intensity_vs_i0(
@@ -57,7 +60,7 @@ def plot_intensity_vs_i0(
             pump-off shots are selected. `None` uses all rows.
 
     Returns:
-        A new Matplotlib Figure. The caller is responsible for closing it.
+        A new Matplotlib Figure.
     """
     d = intensity_vs_i0(metadata, filter=filter)
     i = d['intensity']
@@ -93,7 +96,7 @@ def plot_i0_vs_time(
             `None` uses all rows.
 
     Returns:
-        A new Matplotlib Figure. The caller is responsible for closing it.
+        A new Matplotlib Figure.
     """
     if filter is not None:
         metadata = metadata[filter]
@@ -120,7 +123,7 @@ def plot_intensity_vs_time(
             `None` uses all rows.
 
     Returns:
-        A new Matplotlib Figure. The caller is responsible for closing it.
+        A new Matplotlib Figure.
     """
     if filter is not None:
         metadata = metadata[filter]
@@ -132,3 +135,26 @@ def plot_intensity_vs_time(
     ax.set_title(f'Run {metadata.attrs["run"]:04d}')
 
     return fig
+
+
+def plot_detector_image(
+    h5: h5py.File,
+    h5dict: H5Dictionary,
+    samplerate: int
+) -> Figure:
+    """Plot the full detector.
+
+    Args:
+        h5: h5py.File
+        h5dict: H5Dictionary
+        samplerate: int
+
+    Returns:
+        A new Matplotlib Figure.
+    """
+    im = np.mean(h5[h5dict.stack][::samplerate, ...], axis=0)
+    vmin = np.percentile(im, 1)
+    vmax = np.percentile(im, 99)
+    plt.imshow(im, vmin, vmax)
+    plt.colorbar()
+    plt.show()
