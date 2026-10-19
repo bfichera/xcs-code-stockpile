@@ -1,3 +1,5 @@
+from typing import Optional, Union
+
 import pandas as pd
 
 import matplotlib.pyplot as plt
@@ -6,18 +8,25 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 
 
-def intensity_vs_i0(metadata: pd.DataFrame) -> pd.DataFrame:
+def intensity_vs_i0(
+    metadata: pd.DataFrame,
+    filter: Optional[Union[np.ndarray, pd.Series]] = None,
+) -> pd.DataFrame:
     """Fit pump-off ROI intensity as a linear function of incident intensity.
 
     Args:
         metadata: Metadata containing ``laser_on``, ``i0``, and
-            ``intensity_in_roi``. The function does not otherwise filter rows.
+            ``intensity_in_roi``.
+        filter: Optional boolean array or Series selecting metadata rows before
+            pump-off shots are selected. `None` uses all rows.
 
     Returns:
         A DataFrame with ``i0`` and ``intensity`` columns for pump-off shots.
         Its attributes contain ``beta``, ``intercept``, and ``R^2`` from the
         fitted linear model.
     """
+    if filter is not None:
+        metadata = metadata[filter]
     metadata = metadata[~metadata['laser_on']]
     i0 = metadata['i0'].to_numpy()
     i = metadata['intensity_in_roi'].to_numpy()
@@ -35,17 +44,22 @@ def intensity_vs_i0(metadata: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def plot_intensity_vs_i0(metadata: pd.DataFrame) -> Figure:
+def plot_intensity_vs_i0(
+    metadata: pd.DataFrame,
+    filter: Optional[Union[np.ndarray, pd.Series]] = None,
+) -> Figure:
     """Plot pump-off ROI intensity and its linear fit against ``i0``.
 
     Args:
         metadata: Metadata accepted by `intensity_vs_i0`, with a run number in
-            ``metadata.attrs["run"]``. The function does not filter rows.
+            ``metadata.attrs["run"]``.
+        filter: Optional boolean array or Series selecting metadata rows before
+            pump-off shots are selected. `None` uses all rows.
 
     Returns:
         A new Matplotlib Figure. The caller is responsible for closing it.
     """
-    d = intensity_vs_i0(metadata)
+    d = intensity_vs_i0(metadata, filter=filter)
     i = d['intensity']
     i0 = d['i0']
     beta = d.attrs['beta']
@@ -66,16 +80,23 @@ def plot_intensity_vs_i0(metadata: pd.DataFrame) -> Figure:
     return fig
 
 
-def plot_i0_vs_time(metadata: pd.DataFrame) -> Figure:
+def plot_i0_vs_time(
+    metadata: pd.DataFrame,
+    filter: Optional[Union[np.ndarray, pd.Series]] = None,
+) -> Figure:
     """Plot incident intensity against event time.
 
     Args:
         metadata: Metadata containing ``i0`` and ``event_time``, with a run
-            number in ``metadata.attrs["run"]``. No filtering is applied.
+            number in ``metadata.attrs["run"]``.
+        filter: Optional boolean array or Series selecting metadata rows.
+            `None` uses all rows.
 
     Returns:
         A new Matplotlib Figure. The caller is responsible for closing it.
     """
+    if filter is not None:
+        metadata = metadata[filter]
     i0 = metadata['i0'].to_numpy()
     time = metadata['event_time'].to_numpy()
 
@@ -86,17 +107,23 @@ def plot_i0_vs_time(metadata: pd.DataFrame) -> Figure:
     return fig
 
 
-def plot_intensity_vs_time(metadata: pd.DataFrame) -> Figure:
+def plot_intensity_vs_time(
+    metadata: pd.DataFrame,
+    filter: Optional[Union[np.ndarray, pd.Series]] = None,
+) -> Figure:
     """Plot integrated ROI intensity against event time.
 
     Args:
         metadata: Metadata containing ``intensity_in_roi`` and ``event_time``,
-            with a run number in ``metadata.attrs["run"]``. No filtering is
-            applied.
+            with a run number in ``metadata.attrs["run"]``.
+        filter: Optional boolean array or Series selecting metadata rows.
+            `None` uses all rows.
 
     Returns:
         A new Matplotlib Figure. The caller is responsible for closing it.
     """
+    if filter is not None:
+        metadata = metadata[filter]
     i = metadata['intensity_in_roi'].to_numpy()
     time = metadata['event_time'].to_numpy()
 

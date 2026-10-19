@@ -5,6 +5,7 @@ from pathlib import Path
 import h5py
 import matplotlib
 import numpy as np
+import pandas as pd
 from scipy.ndimage import gaussian_filter, shift
 
 matplotlib.use('Agg')
@@ -205,7 +206,7 @@ class AnalysisTestCase(unittest.TestCase):
         np.testing.assert_allclose(roi_metadata['intensity_in_roi'], expected)
 
     def test_intensity_vs_i0(self):
-        result = intensity_vs_i0(self.metadata)
+        result = xcs.intensity_vs_i0(self.metadata)
         self.assertEqual(len(result), np.count_nonzero(~self.laser_on))
         np.testing.assert_allclose(result['i0'], self.i0[~self.laser_on])
         np.testing.assert_allclose(result['intensity'],
@@ -214,6 +215,26 @@ class AnalysisTestCase(unittest.TestCase):
         self.assertAlmostEqual(result.attrs['beta'], self.off_image.sum())
         self.assertAlmostEqual(result.attrs['intercept'], 0.)
         self.assertAlmostEqual(result.attrs['R^2'], 1.)
+
+        selected = pd.Series(np.arange(self.n_shots) < 50)
+        result = xcs.intensity_vs_i0(self.metadata, filter=selected)
+        expected = selected & ~self.metadata['laser_on']
+        np.testing.assert_allclose(result['i0'], self.i0[expected])
+
+    def test_sanity_plot_filters(self):
+        selected = np.arange(self.n_shots) < 50
+        figures = [
+            xcs.plot_intensity_vs_i0(self.metadata, filter=selected),
+            xcs.plot_i0_vs_time(self.metadata, filter=selected),
+            xcs.plot_intensity_vs_time(self.metadata, filter=selected),
+        ]
+        expected_off = np.count_nonzero(selected & ~self.laser_on)
+        self.assertEqual(figures[0].axes[0].collections[0].get_offsets().shape[0],
+                         expected_off)
+        self.assertEqual(len(figures[1].axes[0].lines[0].get_xdata()), 50)
+        self.assertEqual(len(figures[2].axes[0].lines[0].get_xdata()), 50)
+        for figure in figures:
+            plt.close(figure)
 
     def test_sensible_filter(self):
         self.assertTrue(self.shot_filter.all())
