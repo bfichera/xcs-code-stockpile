@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Optional
 from numpy.typing import ArrayLike
 
 
@@ -6,12 +6,12 @@ class _ROI:
 
     def __init__(
         self,
-        i0: int | None,
-        i1: int | None,
-        istep: int | None,
-        j0: int | None,
-        j1: int | None,
-        jstep: int | None,
+        i0: Optional[int],
+        i1: Optional[int],
+        istep: Optional[int],
+        j0: Optional[int],
+        j1: Optional[int],
+        jstep: Optional[int],
     ):
         self._i0 = i0
         self._i1 = i1
@@ -25,7 +25,7 @@ class _ROI:
                 f"row maximum (y_max): {self._i1}\n"
                 f"row step   (y_step): {self._istep}\n"
                 f"col minimum (x_min): {self._j0}\n"
-                f"col maximum (x_max): {self._j1}"
+                f"col maximum (x_max): {self._j1}\n"
                 f"col step   (x_step): {self._jstep}\n")
 
     @property
@@ -43,7 +43,7 @@ class _ROI:
         return iter(self._as_slices)
 
     @classmethod
-    def from_array(cls, a: ArrayLike) -> Self:
+    def from_array(cls, a: ArrayLike) -> '_ROI':
         """Returns an ROI object from an array
 
         Args:
@@ -61,7 +61,7 @@ class _ROI:
         return cls(y0, y1, None, x0, x1, None)
 
     @classmethod
-    def from_slices(cls, i_sl: slice, j_sl: slice) -> Self:
+    def from_slices(cls, i_sl: slice, j_sl: slice) -> '_ROI':
         """Returns an ROI object from two slice objects
 
         Args:
@@ -75,7 +75,7 @@ class _ROI:
                    j_sl.step)
 
     @classmethod
-    def _guess(cls, arg) -> Self:
+    def _guess(cls, arg) -> '_ROI':
         if len(arg) == 4:
             return cls.from_array(arg)
         if len(arg) == 2:

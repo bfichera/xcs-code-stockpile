@@ -8,7 +8,7 @@ from ._log import logger
 try:
     import hdf5plugin  # noqa
 except ImportError:
-    logger.warn('No hdf5plugin found')
+    logger.warning('No hdf5plugin found')
 
 
 @dataclass

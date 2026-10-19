@@ -15,27 +15,31 @@ def create_metadata(h5: h5py.File,
                     nan_policy='raise'):
     """Create a pandas dataframe with all of the entries in `h5dict`.
 
-    If `h5dict` defines a `stack` key, also adds the intensity in `roi` to the
-    dataframe."""
+    The `stack` entry is required and is used to add the intensity in `roi` to
+    the dataframe."""
+
+    if nan_policy not in ['raise', 'ignore']:
+        raise ValueError(f'Invalid nan_policy: {nan_policy}')
 
     keydict = asdict(h5dict)
     d = {}
-    if 'stack' in keydict:
-        stack = h5[keydict.pop('stack')][..., *roi]
+    stack = h5[keydict.pop('stack')][..., *roi]
 
-        if nan_policy == 'raise':
-            _sum = np.sum
-        elif nan_policy == 'ignore':
-            _sum = np.nansum
-        else:
-            raise ValueError(f'Invalid nan_policy: {nan_policy}')
+    if nan_policy == 'raise':
+        intensity_in_roi = np.sum(stack, axis=(-1, -2))
+        if np.isnan(intensity_in_roi).any():
+            raise ValueError('Detector stack contains NaN values')
+    else:
+        intensity_in_roi = np.nansum(stack, axis=(-1, -2))
 
-        intensity_in_roi = _sum(stack, axis=(-1, -2))
-        d['intensity_in_roi'] = intensity_in_roi
+    d['intensity_in_roi'] = intensity_in_roi
     d['shot_idx'] = np.arange(stack.shape[0])
 
     d.update({k: h5[v][...] for k, v in keydict.items()})
 
     metadata = pd.DataFrame(d)
+    metadata[['laser_on', 'xray_on']] = metadata[[
+        'laser_on', 'xray_on'
+    ]].astype(bool)
     metadata.attrs['run'] = run
     return metadata

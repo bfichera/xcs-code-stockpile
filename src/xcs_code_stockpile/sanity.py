@@ -9,6 +9,7 @@ def intensity_vs_i0(metadata: pd.DataFrame):
     """Plot the intensity in an roi vs i0.
 
     Does no filtering - drop rows from `metadata` first if you want"""
+    metadata = metadata[~metadata['laser_on']]
     i0 = metadata['i0'].to_numpy()
     i = metadata['intensity_in_roi'].to_numpy()
 

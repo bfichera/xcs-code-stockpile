@@ -17,8 +17,8 @@ data = stack[..., *roi]
 But others like
 
 ```
-roi = [x0, y0, x1, y1]
-data = stack[..., roi[1]:roi[3], roi[0], roi[2]]
+roi = [x0, x1, y0, y1]
+data = stack[..., roi[2]:roi[3], roi[0]:roi[1]]
 ```
 
 Why you would prefer the second choice is beyond me. But the good news is that

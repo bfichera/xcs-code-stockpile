@@ -1,3 +1,5 @@
+from typing import Optional, Union
+
 import numpy as np
 import pandas as pd
 import h5py
@@ -15,13 +17,19 @@ def _twotime(stack: np.ndarray, denominator_type: str = 'mean'):
     numerator = (wf.T @ wf) / wf.shape[0]
     if denominator_type == 'mean':
         denominator = mn[:, None] * mn
+        offset = 1
     elif denominator_type == 'std':
+        numerator -= mn[:, None] * mn
         std = np.std(wf, axis=0)
         denominator = std[:, None] * std
-    return numerator / denominator
+        offset = 0
+    return numerator / denominator - offset
 
 
 def _g2_minus_one(twotime: np.ndarray, denominator_type: str = 'mean'):
+    if denominator_type not in ['mean', 'std']:
+        raise NotImplementedError(
+            f'Denominator type {denominator_type} not implemented')
     return np.array([
         np.mean(np.diagonal(twotime, offset=i)) if i != 0 else np.nan
         for i in range(twotime.shape[0])
@@ -33,11 +41,14 @@ def calc_static_correlation(h5: h5py.File,
                             h5dict: H5Dictionary,
                             metadata: pd.DataFrame,
                             filter: np.ndarray,
-                            roi: list[int, int, int, int] | tuple[slice, slice]
-                            | None = None,
+                            roi: Optional[Union[
+                                list[int], tuple[slice, slice]
+                            ]] = None,
                             denominator_type: str = 'mean',
                             ret_twotime: bool = False):
     metadata = metadata[filter]
+    # TODO
+    # Correlation lag is retained frame number, not physical elapsed time.
     stack = h5[h5dict.stack][..., *roi]
     stack = stack[metadata['shot_idx'].to_numpy(), ...]
     twotime = _twotime(stack, denominator_type=denominator_type)
