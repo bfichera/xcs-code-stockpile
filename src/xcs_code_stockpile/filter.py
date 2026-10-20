@@ -3,6 +3,27 @@ import numpy as np
 import pandas as pd
 
 
+def i0_min_max_filter(metadata: pd.DataFrame,
+                      i0_minimum_percentile: float,
+                      i0_maximum_percentile: float) -> pd.Series:
+    valid_input = (
+        metadata['xray_on'] &
+        (metadata['i0'] > 0.0)
+        & np.isfinite(metadata['i0'])
+        & np.isfinite(metadata['intensity_in_roi'])
+    )
+    valid_metadata = metadata[valid_input]
+    i0_minimum = np.percentile(valid_metadata['i0'], i0_minimum_percentile)
+    i0_maximum = np.percentile(valid_metadata['i0'], i0_maximum_percentile)
+    valid_filter = ((valid_metadata['i0'] >= i0_minimum) &
+                    (valid_metadata['i0'] <= i0_maximum))
+
+    filter = pd.Series(False, index=metadata.index)
+    filter.loc[valid_metadata.index] = valid_filter
+
+    return filter
+
+
 def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
                      i0_maximum_percentile: float, ratio_min_percentile: float,
                      ratio_max_percentile: float) -> pd.Series:

@@ -18,7 +18,7 @@ def fit_linear_i_vs_i0(
     """Fit pump-off ROI intensity as a linear function of incident intensity.
 
     Args:
-        metadata: Metadata containing ``laser_on``, ``i0``, and
+        metadata: Metadata containing ``i0``, and
             ``intensity_in_roi``.
         filter: Optional boolean array or Series selecting metadata rows before
             pump-off shots are selected. `None` uses all rows.
@@ -28,7 +28,6 @@ def fit_linear_i_vs_i0(
     """
     if filter is not None:
         metadata = metadata[filter]
-    metadata = metadata[~metadata['laser_on']]
     i0 = metadata['i0'].to_numpy()
     i = metadata['intensity_in_roi'].to_numpy()
 
@@ -61,7 +60,6 @@ def plot_intensity_vs_i0(
         metadata['valid'] = filter
     else:
         metadata['valid'] = [True for i in range(metadata.shape[0])]
-    metadata = metadata[metadata['laser_on']]
     i = metadata['intensity_in_roi'].to_numpy()
     i0 = metadata['i0'].to_numpy()
 

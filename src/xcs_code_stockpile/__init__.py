@@ -2,7 +2,7 @@
 
 from .datahandler import H5Dictionary, load_smalldata
 from .metadata import create_metadata
-from .filter import sensible_filter, no_filter
+from .filter import sensible_filter, no_filter, i0_min_max_filter
 from .differential_correlation import differential_correlation
 from .trxrd import calc_trxrd_stats
 from .static_correlation import calc_static_correlation
@@ -17,6 +17,7 @@ __all__ = [
     'create_metadata',
     'sensible_filter',
     'no_filter',
+    'i0_min_max_filter',
     'differential_correlation',
     'calc_trxrd_stats',
     'calc_static_correlation',
