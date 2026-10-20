@@ -5,3 +5,4 @@ tests/plots/
 *.egg-info/
 site/
 build/
+*.sw*

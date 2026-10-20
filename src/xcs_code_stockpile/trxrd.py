@@ -61,22 +61,41 @@ def calc_trxrd_stats(h5: h5py.File,
     stack = h5[h5dict.stack][..., *roi]
 
     def func(group):
-        shots = group['shot_idx'].to_numpy()
-        substack = stack[shots, ...]
-        n_shots = shots.shape[0]
-        sums = np.sum(substack, axis=(-1, -2))
-        mean_i0 = np.mean(group['i0'])
-        mean_im = np.mean(substack, axis=0)
-        com_i, com_j = center_of_mass(mean_im)
+        on_shots = group[group['laser_on']]['shot_idx'].to_numpy()
+        off_shots = group[~group['laser_on']]['shot_idx'].to_numpy()
+        on_substack = stack[on_shots, ...]
+        off_substack = stack[off_shots, ...]
+        n_on_shots = on_shots.shape[0]
+        n_off_shots = off_shots.shape[0]
+        on_sums = np.sum(on_substack, axis=(-1, -2))
+        off_sums = np.sum(off_substack, axis=(-1, -2))
+        on_mean_i0 = np.mean(group[group['laser_on']]['i0'])
+        off_mean_i0 = np.mean(group[~group['laser_on']]['i0'])
+        mean_on_im = np.mean(on_substack, axis=0)
+        mean_off_im = np.mean(off_substack, axis=0)
+        on_com_i, on_com_j = center_of_mass(mean_on_im)
+        off_com_i, off_com_j = center_of_mass(mean_off_im)
         return pd.Series({
-            'intensity_mean': np.mean(sums) / mean_i0,
-            'intensity_stderr': (np.std(sums) / np.sqrt(n_shots) /
-                                 mean_i0),
-            'com_i': com_i,
-            'com_j': com_j,
-            'fwhm_i': _fwhm_1d(np.sum(mean_im, axis=1), com_i),
-            'fwhm_j': _fwhm_1d(np.sum(mean_im, axis=0), com_j),
-            'n_shots': n_shots
+            'on_intensity_mean': np.mean(on_sums) / on_mean_i0,
+            'on_intensity_stderr': (np.std(on_sums) / np.sqrt(n_on_shots) /
+                                 on_mean_i0),
+            'on_com_i': on_com_i,
+            'on_com_j': on_com_j,
+            'on_fwhm_i': _fwhm_1d(np.sum(mean_on_im, axis=1), on_com_i),
+            'on_fwhm_j': _fwhm_1d(np.sum(mean_on_im, axis=0), on_com_j),
+            'n_on_shots': n_on_shots,
+            'off_intensity_mean': np.mean(off_sums) / off_mean_i0,
+            'off_intensity_stderr': (np.std(off_sums) / np.sqrt(n_off_shots) /
+                                 off_mean_i0),
+            'off_com_i': off_com_i,
+            'off_com_j': off_com_j,
+            'off_fwhm_i': _fwhm_1d(np.sum(mean_off_im, axis=1), off_com_i),
+            'off_fwhm_j': _fwhm_1d(np.sum(mean_off_im, axis=0), off_com_j),
+            'n_off_shots': n_off_shots
         })
 
     return metadata.groupby('delay_bin').apply(func)
+
+
+# TODO
+# Make a movie

@@ -31,10 +31,11 @@ def calc_rocking_stats(h5: h5py.File,
 
     Returns:
         A DataFrame indexed by scan value with ``intensity_mean``,
-        ``intensity_stderr``, and ``n_shots`` columns. Intensities are not
+        ``intensity_stderr``, and ``n_shots`` columns. Intensities are
         normalized by ``i0``.
     """
     metadata = metadata[filter]
+    i0 = metadata['i0']
     stack = h5[h5dict.stack][..., *roi]
 
     def func(group):
@@ -43,8 +44,8 @@ def calc_rocking_stats(h5: h5py.File,
         n_shots = shots.shape[0]
         sums = np.sum(substack, axis=(-1, -2))
         return pd.Series({
-            'intensity_mean': np.mean(sums),
-            'intensity_stderr': np.std(sums) / np.sqrt(n_shots),
+            'intensity_mean': np.mean(sums) / np.mean(i0),
+            'intensity_stderr': np.std(sums) / np.sqrt(n_shots) / np.mean(i0),
             'n_shots': n_shots
         })
 

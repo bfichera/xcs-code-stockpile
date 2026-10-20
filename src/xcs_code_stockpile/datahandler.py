@@ -1,6 +1,7 @@
 from pathlib import Path
-from dataclasses import dataclass
-from typing import Any
+from pydantic import BaseModel, ConfigDict
+from typing import Any, Union
+from collections.abc import Callable
 
 import h5py
 
@@ -12,8 +13,19 @@ except ImportError:
     logger.warning('No hdf5plugin found')
 
 
-@dataclass
-class H5Dictionary:
+class SmartH5(h5py.File):
+
+    def __init__(self, *args, **kwargs):
+        return super().__init__(*args, **kwargs)
+
+    def __getitem__(self, key: Union[str, Callable]):
+        if hasattr(key, '__call__'):
+            breakpoint()
+            return key(self)
+        return super().__getitem__(key)
+
+
+class H5Dictionary(BaseModel):
     """Map logical analysis fields to datasets in a smalldata HDF5 file.
 
     Attributes:
@@ -25,16 +37,18 @@ class H5Dictionary:
         delay: Path to the one-dimensional pump-probe delay dataset.
     """
 
-    event_time: str = '/event_time'
-    laser_on: str = '/lightStatus/laser'
-    xray_on: str = '/lightStatus/xray'
-    i0: str = '/ipm4/sum'
-    stack: str = '/zyla_ladm/ROI_area'
-    delay: str = '/enc/lasdelay'
+    model_config = ConfigDict(extra='allow')
+
+    event_time: Union[str, Callable] = '/event_time'
+    laser_on: Union[str, Callable] = '/lightStatus/laser'
+    xray_on: Union[str, Callable] = '/lightStatus/xray'
+    i0: Union[str, Callable] = '/ipm4/sum'
+    stack: Union[str, Callable] = '/zyla_ladm/ROI_area'
+    delay: Union[str, Callable] = '/enc/lasdelay'
 
 
 def load_smalldata(run_number: int, proposal_number: int,
-                   **h5_kws: Any) -> h5py.File:
+                   **h5_kws: Any) -> 'SmartH5':
     """Open an XCS smalldata file for reading.
 
     The path is constructed as
@@ -47,10 +61,10 @@ def load_smalldata(run_number: int, proposal_number: int,
         **h5_kws: Additional keyword arguments passed to `h5py.File`.
 
     Returns:
-        An open `h5py.File` in read-only mode. The caller must close the file;
+        An open SmartH5 file in read-only mode. The caller must close the file;
         using the result as a context manager is recommended.
     """
     root = Path('/sdf/data/lcls/ds/xcs')
     path = (root / f'xcs{proposal_number}/hdf5/smalldata/'
             f'xcs{proposal_number}_Run{run_number:04d}.h5')
-    return h5py.File(path, 'r', **h5_kws)
+    return SmartH5(path, 'r', **h5_kws)

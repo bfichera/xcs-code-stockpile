@@ -11,7 +11,7 @@ import numpy as np
 from .datahandler import H5Dictionary
 
 
-def intensity_vs_i0(
+def fit_linear_i_vs_i0(
     metadata: pd.DataFrame,
     filter: Optional[Union[np.ndarray, pd.Series]] = None,
 ) -> pd.DataFrame:
@@ -24,9 +24,7 @@ def intensity_vs_i0(
             pump-off shots are selected. `None` uses all rows.
 
     Returns:
-        A DataFrame with ``i0`` and ``intensity`` columns for pump-off shots.
-        Its attributes contain ``beta``, ``intercept``, and ``R^2`` from the
-        fitted linear model.
+        beta, intercept, R^2
     """
     if filter is not None:
         metadata = metadata[filter]
@@ -39,12 +37,7 @@ def intensity_vs_i0(
     y = i
     model.fit(X, y)
 
-    out = pd.DataFrame({'i0': i0, 'intensity': i})
-    out.attrs['beta'] = model.coef_[0]
-    out.attrs['intercept'] = model.intercept_
-    out.attrs['R^2'] = model.score(X, y)
-
-    return out
+    return model.coef_[0], model.intercept_, model.score(X, y)
 
 
 def plot_intensity_vs_i0(
@@ -62,22 +55,25 @@ def plot_intensity_vs_i0(
     Returns:
         A new Matplotlib Figure.
     """
-    d = intensity_vs_i0(metadata, filter=filter)
-    i = d['intensity']
-    i0 = d['i0']
-    beta = d.attrs['beta']
-    intercept = d.attrs['intercept']
-    r2 = d.attrs['R^2']
+    beta, intercept, r2 = fit_linear_i_vs_i0(metadata, filter)
+    metadata = metadata.copy()
+    if filter is not None:
+        metadata['valid'] = filter
+    else:
+        metadata['valid'] = [True for i in range(metadata.shape[0])]
+    metadata = metadata[metadata['laser_on']]
+    i = metadata['intensity_in_roi'].to_numpy()
+    i0 = metadata['i0'].to_numpy()
 
     fig, ax = plt.subplots()
-    ax.scatter(i0, i, edgecolors='black', marker='o', facecolors='none')
+    edgecolors = ['black' if metadata['valid'].to_numpy()[i] else 'red' for i in range(len(i0))]
+    ax.scatter(i0, i, edgecolors=edgecolors, marker='o', facecolors='none')
     model_x = np.linspace(i0.min(), i0.max(), 100)
     ax.plot(model_x,
             beta * model_x + intercept,
             linestyle=':',
             color='red',
             label=fr'$R^2 = {r2:.2f}$')
-    ax.set_title(f'Run {metadata.attrs["run"]:04d}')
     ax.legend()
     ax.set_xlabel('i0')
     ax.set_ylabel('intensity')

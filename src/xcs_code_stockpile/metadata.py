@@ -1,7 +1,6 @@
 from ._utils import parsed_roi
 from .datahandler import H5Dictionary
 from ._log import logger
-from dataclasses import asdict
 from typing import Optional, Union
 
 import h5py
@@ -42,7 +41,7 @@ def create_metadata(h5: h5py.File,
     if nan_policy not in ['raise', 'ignore']:
         raise ValueError(f'Invalid nan_policy: {nan_policy}')
 
-    keydict = asdict(h5dict)
+    keydict = h5dict.model_dump()
     d = {}
     stack = h5[keydict.pop('stack')][..., *roi]
 

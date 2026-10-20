@@ -50,3 +50,7 @@ def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
     filter.loc[valid_metadata.index] = valid_filter
 
     return filter
+
+
+def no_filter(metadata: pd.DataFrame) -> pd.Series:
+    return pd.Series(True, index=metadata.index)
