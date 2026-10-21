@@ -23,7 +23,7 @@ def _correlation_of_two_images(im1: np.ndarray,
         std_ = np.nanstd
     else:
         mean_ = np.mean
-        std = np.std
+        std_ = np.std
     if denominator_type.endswith('mean'):
         return mean_(im1 * im2) / mean_(im1) / mean_(im2) - 1
     elif denominator_type.endswith('std'):
