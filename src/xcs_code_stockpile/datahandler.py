@@ -20,7 +20,6 @@ class SmartH5(h5py.File):
 
     def __getitem__(self, key: Union[str, Callable]):
         if hasattr(key, '__call__'):
-            breakpoint()
             return key(self)
         return super().__getitem__(key)
 

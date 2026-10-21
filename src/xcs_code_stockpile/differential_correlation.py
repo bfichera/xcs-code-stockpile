@@ -18,11 +18,17 @@ def _bin_edges(values: np.ndarray, interval: float):
 def _correlation_of_two_images(im1: np.ndarray,
                                im2: np.ndarray,
                                denominator_type: str = 'mean'):
-    if denominator_type == 'mean':
-        return np.mean(im1 * im2) / np.mean(im1) / np.mean(im2) - 1
-    elif denominator_type == 'std':
-        covariance = np.mean(im1 * im2) - np.mean(im1) * np.mean(im2)
-        return covariance / np.std(im1) / np.std(im2)
+    if denominator_type.startswith('nan'):
+        mean_ = np.nanmean
+        std_ = np.nanstd
+    else:
+        mean_ = np.mean
+        std = np.std
+    if denominator_type.endswith('mean'):
+        return mean_(im1 * im2) / mean_(im1) / mean_(im2) - 1
+    elif denominator_type.endswith('std'):
+        covariance = mean_(im1 * im2) - mean_(im1) * mean_(im2)
+        return covariance / std_(im1) / std_(im2)
     raise NotImplementedError(
         f'Denominator type {denominator_type} not implemented')
 

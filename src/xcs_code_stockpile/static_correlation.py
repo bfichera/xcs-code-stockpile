@@ -9,29 +9,34 @@ from ._utils import parsed_roi
 
 
 def _twotime(stack: np.ndarray, denominator_type: str = 'mean'):
-    if denominator_type not in ['mean', 'std']:
+    if denominator_type not in ['mean', 'std', 'nanmean', 'nanstd']:
         raise NotImplementedError(
             f'Denominator type {denominator_type} not implemented')
     wf = stack.reshape(stack.shape[0], -1).T  # n_pixels x n_frames
-    mn = np.mean(wf, axis=0)
+    if denominator_type.startswith('nan'):
+        mean_ = np.nanmean
+        std_ = np.nanstd
+    else:
+        mean_ = np.mean
+        std_ = np.std
+    mn = mean_(wf, axis=0)
     numerator = (wf.T @ wf) / wf.shape[0]
-    if denominator_type == 'mean':
+    if denominator_type.endswith('mean'):
         denominator = mn[:, None] * mn
         offset = 1
-    elif denominator_type == 'std':
+    elif denominator_type.endswith('std'):
         numerator -= mn[:, None] * mn
-        std = np.std(wf, axis=0)
+        std = std_(wf, axis=0)
         denominator = std[:, None] * std
         offset = 0
-    return numerator / denominator - offset
+    ret = numerator / denominator - offset
+    np.fill_diagonal(ret, np.nan)
+    return ret
 
 
-def _g2_minus_one(twotime: np.ndarray, denominator_type: str = 'mean'):
-    if denominator_type not in ['mean', 'std']:
-        raise NotImplementedError(
-            f'Denominator type {denominator_type} not implemented')
+def _g2_minus_one(twotime: np.ndarray):
     return np.array([
-        np.mean(np.diagonal(twotime, offset=i)) if i != 0 else np.nan
+        np.nanmean(np.diagonal(twotime, offset=i)) if i != 0 else np.nan
         for i in range(twotime.shape[0])
     ])
 
@@ -79,7 +84,7 @@ def calc_static_correlation(h5: h5py.File,
     stack = h5[h5dict.stack][..., *roi]
     stack = stack[metadata['shot_idx'].to_numpy(), ...]
     twotime = _twotime(stack, denominator_type=denominator_type)
-    g2_minus_one = _g2_minus_one(twotime, denominator_type=denominator_type)
+    g2_minus_one = _g2_minus_one(twotime)
 
     if ret_twotime:
         return g2_minus_one, twotime
