@@ -2,6 +2,7 @@ from typing import Optional, Union
 from os import PathLike
 from pathlib import Path
 from itertools import product
+from collections.abc import Hashable
 
 import h5py
 import numpy as np
@@ -133,8 +134,8 @@ def save_movie(h5: h5py.File,
                save_dir: PathLike,
                fname_prefix: str = '',
                roi: Optional[Union[list[int], tuple[slice, slice]]] = None,
-               on_types: list[int] = 0,
-               off_types: list[int] = 1) -> pd.DataFrame:
+               on_types: list[Hashable] = ['on'],
+               off_types: list[Hashable] = ['off']) -> pd.DataFrame:
     metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
