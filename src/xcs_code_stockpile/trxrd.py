@@ -50,14 +50,14 @@ def _fwhm_1d(a, center):
 
 
 @parsed_roi
-def calc_trxrd_stats(
-    h5: h5py.File,
-    h5dict: H5Dictionary,
-    metadata: pd.DataFrame,
-    filter: np.ndarray,
-    bin_interval: float,
-    roi: Optional[Union[list[int], tuple[slice,
-                                         slice]]] = None) -> pd.DataFrame:
+def calc_trxrd_stats(h5: h5py.File,
+                     h5dict: H5Dictionary,
+                     metadata: pd.DataFrame,
+                     filter: np.ndarray,
+                     bin_interval: float,
+                     roi: Optional[Union[list[int], tuple[slice,
+                                                          slice]]] = None,
+                     compute_image_stats: bool = True) -> pd.DataFrame:
     """Calculate delay-binned time-resolved diffraction statistics.
 
     Args:
@@ -101,40 +101,72 @@ def calc_trxrd_stats(
         off_sums = np.sum(off_substack, axis=(-1, -2))
         on_mean_i0 = np.mean(group[group['laser_on']]['i0'])
         off_mean_i0 = np.mean(group[~group['laser_on']]['i0'])
-        mean_on_im = np.mean(on_substack, axis=0)
-        mean_off_im = np.mean(off_substack, axis=0)
-        on_com_i, on_com_j = center_of_mass(mean_on_im)
-        off_com_i, off_com_j = center_of_mass(mean_off_im)
-        return pd.Series({
-            'on_intensity_mean':
-            np.mean(on_sums) / on_mean_i0,
-            'on_intensity_stderr':
-            (np.std(on_sums) / np.sqrt(n_on_shots) / on_mean_i0),
-            'on_com_i':
-            on_com_i,
-            'on_com_j':
-            on_com_j,
-            'on_fwhm_i':
-            _fwhm_1d(np.sum(mean_on_im, axis=1), on_com_i),
-            'on_fwhm_j':
-            _fwhm_1d(np.sum(mean_on_im, axis=0), on_com_j),
-            'n_on_shots':
-            n_on_shots,
-            'off_intensity_mean':
-            np.mean(off_sums) / off_mean_i0,
-            'off_intensity_stderr':
-            (np.std(off_sums) / np.sqrt(n_off_shots) / off_mean_i0),
-            'off_com_i':
-            off_com_i,
-            'off_com_j':
-            off_com_j,
-            'off_fwhm_i':
-            _fwhm_1d(np.sum(mean_off_im, axis=1), off_com_i),
-            'off_fwhm_j':
-            _fwhm_1d(np.sum(mean_off_im, axis=0), off_com_j),
-            'n_off_shots':
-            n_off_shots
-        })
+        if compute_image_stats:
+            mean_on_im = np.mean(on_substack, axis=0)
+            mean_off_im = np.mean(off_substack, axis=0)
+            on_com_i, on_com_j = center_of_mass(mean_on_im)
+            off_com_i, off_com_j = center_of_mass(mean_off_im)
+            return pd.Series({
+                'on_intensity_mean':
+                np.mean(on_sums) / on_mean_i0,
+                'on_intensity_stderr':
+                (np.std(on_sums) / np.sqrt(n_on_shots) / on_mean_i0),
+                'on_com_i':
+                on_com_i,
+                'on_com_j':
+                on_com_j,
+                'on_fwhm_i':
+                _fwhm_1d(np.sum(mean_on_im, axis=1), on_com_i),
+                'on_fwhm_j':
+                _fwhm_1d(np.sum(mean_on_im, axis=0), on_com_j),
+                'n_on_shots':
+                n_on_shots,
+                'off_intensity_mean':
+                np.mean(off_sums) / off_mean_i0,
+                'off_intensity_stderr':
+                (np.std(off_sums) / np.sqrt(n_off_shots) / off_mean_i0),
+                'off_com_i':
+                off_com_i,
+                'off_com_j':
+                off_com_j,
+                'off_fwhm_i':
+                _fwhm_1d(np.sum(mean_off_im, axis=1), off_com_i),
+                'off_fwhm_j':
+                _fwhm_1d(np.sum(mean_off_im, axis=0), off_com_j),
+                'n_off_shots':
+                n_off_shots
+            })
+        else:
+            return pd.Series({
+                'on_intensity_mean':
+                np.mean(on_sums) / on_mean_i0,
+                'on_intensity_stderr':
+                (np.std(on_sums) / np.sqrt(n_on_shots) / on_mean_i0),
+                'on_com_i':
+                np.nan,
+                'on_com_j':
+                np.nan,
+                'on_fwhm_i':
+                np.nan,
+                'on_fwhm_j':
+                np.nan,
+                'n_on_shots':
+                n_on_shots,
+                'off_intensity_mean':
+                np.mean(off_sums) / off_mean_i0,
+                'off_intensity_stderr':
+                (np.std(off_sums) / np.sqrt(n_off_shots) / off_mean_i0),
+                'off_com_i':
+                np.nan,
+                'off_com_j':
+                np.nan,
+                'off_fwhm_i':
+                np.nan,
+                'off_fwhm_j':
+                np.nan,
+                'n_off_shots':
+                n_off_shots,
+            })
 
     return metadata.groupby('delay_bin').apply(func)
 
@@ -199,4 +231,8 @@ def save_movie(
             cmap_str = 'RdBu_r'
         else:
             cmap_str = 'viridis'
-        save_array_to_movie(im_array, save_dir / fname, vmin=vmin, vmax=vmax, cmap=cmap_str)
+        save_array_to_movie(im_array,
+                            save_dir / fname,
+                            vmin=vmin,
+                            vmax=vmax,
+                            cmap=cmap_str)
