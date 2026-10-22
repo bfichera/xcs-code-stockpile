@@ -182,7 +182,7 @@ def save_movie(h5: h5py.File,
         for im_array, fname in zip([on_ims, off_ims, diff_ims], [
                 f'{fname_prefix}{fname_suffix}.gif' for fname_suffix in [
                     f'on_{on_type}',
-                    f'off_{on_type}',
+                    f'off_{off_type}',
                     f'diff_{on_type}_{off_type}',
                 ]
         ]):
