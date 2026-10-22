@@ -69,7 +69,10 @@ def create_metadata(h5: h5py.File,
                                                   'xray_on']].astype(bool)
     metadata.attrs['run'] = run
     if laser_off_type_func is None:
-        metadata['laser_off_type'] = ~metadata['laser_on']
+        _lonarr = metadata['laser_on'].to_numpy()
+        metadata['laser_off_type'] = [
+            'on' if _lonarr[i] == 1 else 'off' for i in range(len(_lonarr))
+        ]
     else:
         metadata['laser_off_type'] = laser_off_type_func(h5, *args, **kwargs)
     return metadata
