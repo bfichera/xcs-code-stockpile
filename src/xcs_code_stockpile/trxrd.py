@@ -130,8 +130,6 @@ def calc_trxrd_stats(
     return metadata.groupby('delay_bin').apply(func)
 
 
-# TODO
-# Make a movie
 def save_movie(
     h5: h5py.File,
     h5dict: H5Dictionary,
