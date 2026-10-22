@@ -183,7 +183,7 @@ def save_movie(
     else:
         raise FileExistsError(f'{save_dir.as_posix()} already exists!')
     for im_array, fname in zip([on_ims, off_ims, diff_ims], [
-            f'{fname_prefix}_{fname_suffix}.gif'
+            f'{fname_prefix}{fname_suffix}.gif'
             for fname_suffix in ['on', 'off', 'diff']
     ]):
         vmin = np.nanpercentile(im_array, 1)
