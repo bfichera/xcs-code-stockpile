@@ -1,7 +1,7 @@
 from ._utils import parsed_roi
 from .datahandler import H5Dictionary
 from ._log import logger
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
 import h5py
 import numpy as np
@@ -14,7 +14,10 @@ def create_metadata(h5: h5py.File,
                     h5dict: H5Dictionary,
                     roi: Optional[Union[list[int], tuple[slice,
                                                          slice]]] = None,
-                    nan_policy: str = 'raise') -> pd.DataFrame:
+                    nan_policy: str = 'raise',
+                    laser_off_type_func: Optional[Callable] = None,
+                    *args,
+                    **kwargs) -> pd.DataFrame:
     """Build per-shot metadata from a smalldata HDF5 file.
 
     Args:
@@ -65,4 +68,8 @@ def create_metadata(h5: h5py.File,
     metadata[['laser_on', 'xray_on']] = metadata[['laser_on',
                                                   'xray_on']].astype(bool)
     metadata.attrs['run'] = run
+    if laser_off_type_func is None:
+        metadata['laser_off_type'] = ~metadata['laser_on']
+    else:
+        metadata['laser_off_type'] = laser_off_type_func(h5, *args, **kwargs)
     return metadata

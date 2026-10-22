@@ -8,6 +8,13 @@ from ._utils import parsed_roi
 from .datahandler import H5Dictionary
 
 
+def _validate_metadata(metadata):
+    if metadata['off_types'].nunique() > 2:
+        raise NotImplementedError(
+            'Differential correlation is only implemented for two off types'
+            ' (laser on, and laser off)')
+
+
 def _bin_edges(values: np.ndarray, interval: float):
     bins = np.arange(values.min(), values.max() + interval, interval)
     if bins[-1] <= values.max():
@@ -44,6 +51,7 @@ def _strong_reversibility_diffcorr(h5: h5py.File,
                                                        tuple[slice,
                                                              slice]]] = None,
                                    denominator_type: str = 'mean'):
+    _validate_metadata(metadata)
 
     metadata = metadata[filter].copy()
 
@@ -104,6 +112,7 @@ def _weak_reversibility_diffcorr(h5: h5py.File,
                                                      tuple[slice,
                                                            slice]]] = None,
                                  denominator_type: str = 'mean'):
+    _validate_metadata(metadata)
 
     metadata = metadata[filter].copy()
 
@@ -161,6 +170,7 @@ def _none_reversibility_diffcorr(h5: h5py.File,
                                                      tuple[slice,
                                                            slice]]] = None,
                                  denominator_type: str = 'mean'):
+    _validate_metadata(metadata)
 
     metadata = metadata[filter].copy()
 

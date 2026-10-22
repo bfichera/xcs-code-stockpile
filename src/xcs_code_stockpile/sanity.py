@@ -64,7 +64,10 @@ def plot_intensity_vs_i0(
     i0 = metadata['i0'].to_numpy()
 
     fig, ax = plt.subplots()
-    edgecolors = ['black' if metadata['valid'].to_numpy()[i] else 'red' for i in range(len(i0))]
+    edgecolors = [
+        'black' if metadata['valid'].to_numpy()[i] else 'red'
+        for i in range(len(i0))
+    ]
     ax.scatter(i0, i, edgecolors=edgecolors, marker='o', facecolors='none')
     model_x = np.linspace(i0.min(), i0.max(), 100)
     ax.plot(model_x,
@@ -138,12 +141,8 @@ def plot_intensity_vs_time(
     return fig
 
 
-def plot_detector_image(
-    h5: h5py.File,
-    h5dict: H5Dictionary,
-    samplerate: int,
-    **kws
-) -> Figure:
+def plot_detector_image(h5: h5py.File, h5dict: H5Dictionary, samplerate: int,
+                        **kws) -> Figure:
     """Plot the full detector.
 
     Args:
@@ -156,9 +155,9 @@ def plot_detector_image(
         A new Matplotlib Figure.
     """
     im = np.mean(h5[h5dict.stack][::samplerate, ...], axis=0)
-    if not 'vmin' in kws:
+    if 'vmin' not in kws:
         kws['vmin'] = np.percentile(im, 1)
-    if not 'vmax' in kws:
+    if 'vmax' not in kws:
         kws['vmax'] = np.percentile(im, 99)
     fig, ax = plt.subplots()
     ax.imshow(im, **kws)
