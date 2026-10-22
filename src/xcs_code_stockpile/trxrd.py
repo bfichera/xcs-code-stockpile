@@ -99,3 +99,9 @@ def calc_trxrd_stats(h5: h5py.File,
 
 # TODO
 # Make a movie
+def save_movie(
+    h5: h5py.File,
+    h5dict: H5Dictionary,
+    metadata: pd.DataFrame,
+    filter: np.ndarray,
+    bin_interval: float, roi: Optional[Union[list[int], tuple[slice, slice]]] = None) -> pd.DataFrame:

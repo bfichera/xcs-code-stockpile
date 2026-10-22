@@ -141,7 +141,8 @@ def plot_intensity_vs_time(
 def plot_detector_image(
     h5: h5py.File,
     h5dict: H5Dictionary,
-    samplerate: int
+    samplerate: int,
+    **kws
 ) -> Figure:
     """Plot the full detector.
 
@@ -149,13 +150,16 @@ def plot_detector_image(
         h5: h5py.File
         h5dict: H5Dictionary
         samplerate: int
+        kws: keywords to pass to plt.imshow
 
     Returns:
         A new Matplotlib Figure.
     """
     im = np.mean(h5[h5dict.stack][::samplerate, ...], axis=0)
-    vmin = np.percentile(im, 1)
-    vmax = np.percentile(im, 99)
+    if not 'vmin' in kws:
+        kws['vmin'] = np.percentile(im, 1)
+    if not 'vmax' in kws:
+        kws['vmax'] = np.percentile(im, 99)
     fig, ax = plt.subplots()
-    ax.imshow(im, vmin=vmin, vmax=vmax)
+    ax.imshow(im, **kws)
     return fig
