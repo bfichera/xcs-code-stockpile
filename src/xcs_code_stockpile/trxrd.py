@@ -1,5 +1,6 @@
 from typing import Optional, Union
 from os import PathLike
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -15,7 +16,8 @@ def save_array_to_movie(ims: np.ndarray,
                         path: Optional[PathLike] = None,
                         vmin: Optional[float] = None,
                         vmax: Optional[float] = None,
-                        cmap: str = 'viridis'):
+                        cmap: str = 'viridis',
+                        first_frame_repeats: int = 15):
     import imageio
     if vmin is None:
         vmin = np.nanmin(ims)
@@ -28,9 +30,16 @@ def save_array_to_movie(ims: np.ndarray,
     rgba_array = cmap(regulated_ims)
     rgb_array = rgba_array[..., :3]
     rgb_uint8 = (rgb_array * 255.0).astype(np.uint8)
+    repeated_ims = []
+    for i in range(rgb_uint8.shape[0]):
+        if i == 0:
+            for j in range(first_frame_repeats):
+                repeated_ims.append(rgb_uint8[i, ...])
+        else:
+            repeated_ims.append(rgb_uint8[i, ...])
 
     if path is not None:
-        imageio.mimsave(path, rgb_uint8, fps=30)
+        imageio.mimsave(path, repeated_ims, fps=30)
     return regulated_ims
 
 
@@ -130,6 +139,7 @@ def calc_trxrd_stats(
     return metadata.groupby('delay_bin').apply(func)
 
 
+@parsed_roi
 def save_movie(
     h5: h5py.File,
     h5dict: H5Dictionary,
@@ -166,7 +176,7 @@ def save_movie(
         mean_normalized_on_im = mean_on_im / on_mean_i0
         mean_normalized_off_im = mean_off_im / off_mean_i0
 
-        delays.append(delay_bin.left)
+        delays.append(delay_bin)
         on_ims.append(mean_normalized_on_im)
         off_ims.append(mean_normalized_off_im)
         diff_ims.append(mean_normalized_on_im / mean_normalized_off_im - 1.0)
@@ -176,14 +186,17 @@ def save_movie(
     off_ims = np.array(off_ims)
     diff_ims = np.array(diff_ims)
 
+    save_dir = Path(save_dir)
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        raise FileExistsError(f'{save_dir.as_posix()} already exists!')
     for im_array, fname in zip([on_ims, off_ims, diff_ims], [
             f'{fname_prefix}{fname_suffix}.gif'
             for fname_suffix in ['on', 'off', 'diff']
     ]):
         vmin = np.nanpercentile(im_array, 1)
         vmax = np.nanpercentile(im_array, 99)
-        save_array_to_movie(im_array, save_dir / fname, vmin=vmin, vmax=vmax)
+        if fname.endswith('diff.gif'):
+            cmap_str = 'RdBu_r'
+        else:
+            cmap_str = 'viridis'
+        save_array_to_movie(im_array, save_dir / fname, vmin=vmin, vmax=vmax, cmap=cmap_str)

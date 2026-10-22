@@ -20,11 +20,11 @@ __all__ = [
     'i0_min_max_filter',
     'differential_correlation',
     'calc_trxrd_stats',
+    'save_movie',
     'calc_static_correlation',
     'calc_rocking_stats',
     'plot_intensity_vs_i0',
     'plot_i0_vs_time',
     'plot_intensity_vs_time',
     'plot_detector_image',
-    'save_movie'
 ]
