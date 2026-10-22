@@ -1,12 +1,37 @@
 from typing import Optional, Union
+from os import PathLike
 
 import h5py
 import numpy as np
 import pandas as pd
 from scipy.ndimage import center_of_mass
+import matplotlib.pyplot as plt
 
 from .datahandler import H5Dictionary
 from ._utils import parsed_roi
+
+
+def save_array_to_movie(ims: np.ndarray,
+                        path: Optional[PathLike] = None,
+                        vmin: Optional[float] = None,
+                        vmax: Optional[float] = None,
+                        cmap: str = 'viridis'):
+    import imageio
+    if vmin is None:
+        vmin = np.nanmin(ims)
+    if vmax is None:
+        vmax = np.nanmax(ims)
+    ims = np.clip(ims, vmin, vmax)
+    regulated_ims = ((ims - np.nanmin(ims)) /
+                     (np.nanmax(ims) - np.nanmin(ims)))
+    cmap = plt.get_cmap(cmap)
+    rgba_array = cmap(regulated_ims)
+    rgb_array = rgba_array[..., :3]
+    rgb_uint8 = (rgb_array * 255.0).astype(np.uint8)
+
+    if path is not None:
+        imageio.mimsave(path, rgb_uint8, fps=30)
+    return regulated_ims
 
 
 def _fwhm_1d(a, center):
@@ -16,15 +41,14 @@ def _fwhm_1d(a, center):
 
 
 @parsed_roi
-def calc_trxrd_stats(h5: h5py.File,
-                     h5dict: H5Dictionary,
-                      metadata: pd.DataFrame,
-                      filter: np.ndarray,
-                      bin_interval: float,
-                      roi: Optional[Union[
-                          list[int], tuple[slice, slice]
-                      ]] = None) -> pd.DataFrame:
-
+def calc_trxrd_stats(
+    h5: h5py.File,
+    h5dict: H5Dictionary,
+    metadata: pd.DataFrame,
+    filter: np.ndarray,
+    bin_interval: float,
+    roi: Optional[Union[list[int], tuple[slice,
+                                         slice]]] = None) -> pd.DataFrame:
     """Calculate delay-binned time-resolved diffraction statistics.
 
     Args:
@@ -52,10 +76,7 @@ def calc_trxrd_stats(h5: h5py.File,
     bins = np.arange(delay.min(), delay.max() + bin_interval, bin_interval)
     if bins[-1] <= delay.max():
         bins = np.append(bins, bins[-1] + bin_interval)
-    delay_bins = pd.cut(metadata['delay'],
-                        bins,
-                        right=False,
-                        labels=bins[:-1])
+    delay_bins = pd.cut(metadata['delay'], bins, right=False, labels=bins[:-1])
     metadata['delay_bin'] = delay_bins
 
     stack = h5[h5dict.stack][..., *roi]
@@ -76,22 +97,34 @@ def calc_trxrd_stats(h5: h5py.File,
         on_com_i, on_com_j = center_of_mass(mean_on_im)
         off_com_i, off_com_j = center_of_mass(mean_off_im)
         return pd.Series({
-            'on_intensity_mean': np.mean(on_sums) / on_mean_i0,
-            'on_intensity_stderr': (np.std(on_sums) / np.sqrt(n_on_shots) /
-                                 on_mean_i0),
-            'on_com_i': on_com_i,
-            'on_com_j': on_com_j,
-            'on_fwhm_i': _fwhm_1d(np.sum(mean_on_im, axis=1), on_com_i),
-            'on_fwhm_j': _fwhm_1d(np.sum(mean_on_im, axis=0), on_com_j),
-            'n_on_shots': n_on_shots,
-            'off_intensity_mean': np.mean(off_sums) / off_mean_i0,
-            'off_intensity_stderr': (np.std(off_sums) / np.sqrt(n_off_shots) /
-                                 off_mean_i0),
-            'off_com_i': off_com_i,
-            'off_com_j': off_com_j,
-            'off_fwhm_i': _fwhm_1d(np.sum(mean_off_im, axis=1), off_com_i),
-            'off_fwhm_j': _fwhm_1d(np.sum(mean_off_im, axis=0), off_com_j),
-            'n_off_shots': n_off_shots
+            'on_intensity_mean':
+            np.mean(on_sums) / on_mean_i0,
+            'on_intensity_stderr':
+            (np.std(on_sums) / np.sqrt(n_on_shots) / on_mean_i0),
+            'on_com_i':
+            on_com_i,
+            'on_com_j':
+            on_com_j,
+            'on_fwhm_i':
+            _fwhm_1d(np.sum(mean_on_im, axis=1), on_com_i),
+            'on_fwhm_j':
+            _fwhm_1d(np.sum(mean_on_im, axis=0), on_com_j),
+            'n_on_shots':
+            n_on_shots,
+            'off_intensity_mean':
+            np.mean(off_sums) / off_mean_i0,
+            'off_intensity_stderr':
+            (np.std(off_sums) / np.sqrt(n_off_shots) / off_mean_i0),
+            'off_com_i':
+            off_com_i,
+            'off_com_j':
+            off_com_j,
+            'off_fwhm_i':
+            _fwhm_1d(np.sum(mean_off_im, axis=1), off_com_i),
+            'off_fwhm_j':
+            _fwhm_1d(np.sum(mean_off_im, axis=0), off_com_j),
+            'n_off_shots':
+            n_off_shots
         })
 
     return metadata.groupby('delay_bin').apply(func)
@@ -104,4 +137,55 @@ def save_movie(
     h5dict: H5Dictionary,
     metadata: pd.DataFrame,
     filter: np.ndarray,
-    bin_interval: float, roi: Optional[Union[list[int], tuple[slice, slice]]] = None) -> pd.DataFrame:
+    bin_interval: float,
+    save_dir: PathLike,
+    fname_prefix: str = '',
+    roi: Optional[Union[list[int], tuple[slice, slice]]] = None,
+) -> pd.DataFrame:
+    metadata = metadata[filter].copy()
+    # Then we bin the data
+    delay = metadata['delay'].to_numpy()
+    bins = np.arange(delay.min(), delay.max() + bin_interval, bin_interval)
+    if bins[-1] <= delay.max():
+        bins = np.append(bins, bins[-1] + bin_interval)
+    delay_bins = pd.cut(metadata['delay'], bins, right=False, labels=bins[:-1])
+    metadata['delay_bin'] = delay_bins
+
+    stack = h5[h5dict.stack][..., *roi]
+    delays = []
+    on_ims = []
+    off_ims = []
+    diff_ims = []
+    for delay_bin, group in metadata.groupby('delay_bin'):
+        on_shots = group[group['laser_on']]['shot_idx'].to_numpy()
+        off_shots = group[~group['laser_on']]['shot_idx'].to_numpy()
+        on_substack = stack[on_shots, ...]
+        off_substack = stack[off_shots, ...]
+        on_mean_i0 = np.mean(group[group['laser_on']]['i0'])
+        off_mean_i0 = np.mean(group[~group['laser_on']]['i0'])
+        mean_on_im = np.mean(on_substack, axis=0)
+        mean_off_im = np.mean(off_substack, axis=0)
+        mean_normalized_on_im = mean_on_im / on_mean_i0
+        mean_normalized_off_im = mean_off_im / off_mean_i0
+
+        delays.append(delay_bin.left)
+        on_ims.append(mean_normalized_on_im)
+        off_ims.append(mean_normalized_off_im)
+        diff_ims.append(mean_normalized_on_im / mean_normalized_off_im - 1.0)
+
+    delays = np.array(delays)
+    on_ims = np.array(on_ims)
+    off_ims = np.array(off_ims)
+    diff_ims = np.array(diff_ims)
+
+    if not save_dir.exists():
+        save_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        raise FileExistsError(f'{save_dir.as_posix()} already exists!')
+    for im_array, fname in zip([on_ims, off_ims, diff_ims], [
+            f'{fname_prefix}_{fname_suffix}.gif'
+            for fname_suffix in ['on', 'off', 'diff']
+    ]):
+        vmin = np.nanpercentile(im_array, 1)
+        vmax = np.nanpercentile(im_array, 99)
+        save_array_to_movie(im_array, save_dir / fname, vmin=vmin, vmax=vmax)
