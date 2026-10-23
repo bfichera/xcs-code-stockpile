@@ -9,6 +9,15 @@ from ._utils import parsed_roi
 from .datahandler import H5Dictionary
 
 
+def _slow_mean_of_ims(stack, idx):
+    out = np.zeros(stack.shape[1:])
+    n = 0
+    for i in idx:
+        n += 1
+        out += stack[i, ...]
+    return out / n
+
+
 def _bin_edges(values: np.ndarray, interval: float):
     bins = np.arange(values.min(), values.max() + interval, interval)
     if bins[-1] <= values.max():
@@ -307,8 +316,8 @@ def _strong_reversibility_difftwotime(
                                                'shot_idx'].to_numpy()
                     on_shots_idx2 = group2.loc[group2['laser_on'],
                                                'shot_idx'].to_numpy()
-                    mean_on_shot1 = np.mean(stack[on_shots_idx1, ...], axis=0)
-                    mean_on_shot2 = np.mean(stack[on_shots_idx2, ...], axis=0)
+                    mean_on_shot1 = _slow_mean_of_ims(stack, on_shots_idx1)
+                    mean_on_shot2 = _slow_mean_of_ims(stack, on_shots_idx2)
                     labtime_twotime[i, j] = _correlation_of_two_images(
                         mean_on_shot1,
                         mean_on_shot2,
