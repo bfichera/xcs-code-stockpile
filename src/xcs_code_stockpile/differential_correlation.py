@@ -299,7 +299,7 @@ def _strong_reversibility_difftwotime(
 
     # TODO
     # A better estimate should be used which takes into account the number of
-    # frames we mean over but but I don't have time to do it right now
+    # frames we mean over but I don't have time to do it right now
     unique_delays = metadata['delay_bin'].nunique()
     with tqdm(total=metadata['labtime_bin'].nunique()) as bar:
         twotimes = []
