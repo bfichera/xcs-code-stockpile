@@ -300,25 +300,30 @@ def _strong_reversibility_difftwotime(
     # TODO
     # A better estimate should be used which takes into account the number of
     # frames we mean over but I don't have time to do it right now
-    unique_delays = metadata['delay_bin'].nunique()
+    n_delays = metadata['delay_bin'].nunique()
+    idx = np.arange(n_delays, dtype=int)
+    map_ = {ud: i for ud, i in zip(metadata['delay_bin'].unique(), idx)}
     with tqdm(total=metadata['labtime_bin'].nunique()) as bar:
         twotimes = []
         for lab_idx, (labtime_bin, labtime_group) in enumerate(
                 metadata.groupby('labtime_bin')):
-            labtime_twotime = np.zeros((unique_delays, unique_delays))
+            labtime_twotime = np.zeros((n_delays, n_delays))
+            labtime_group.to_csv('wtf.csv')
             for i, (delay1,
                     group1) in enumerate(labtime_group.groupby('delay_bin')):
                 for j, (delay2, group2) in enumerate(
                         labtime_group.groupby('delay_bin')):
                     if delay1 <= delay2:  # delay1 is always > delay2
                         continue
+                    i_towrite = map_[delay1]
+                    j_towrite = map_[delay2]
                     on_shots_idx1 = group1.loc[group1['laser_on'],
                                                'shot_idx'].to_numpy()
                     on_shots_idx2 = group2.loc[group2['laser_on'],
                                                'shot_idx'].to_numpy()
                     mean_on_shot1 = _slow_mean_of_ims(stack, on_shots_idx1)
                     mean_on_shot2 = _slow_mean_of_ims(stack, on_shots_idx2)
-                    labtime_twotime[i, j] = _correlation_of_two_images(
+                    labtime_twotime[i_towrite, j_towrite] = _correlation_of_two_images(
                         mean_on_shot1,
                         mean_on_shot2,
                         denominator_type=denominator_type)
