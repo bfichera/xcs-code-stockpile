@@ -14,7 +14,8 @@ def create_metadata(h5: h5py.File,
                     h5dict: H5Dictionary,
                     roi: Optional[Union[list[int], tuple[slice,
                                                          slice]]] = None,
-                    nan_policy: str = 'raise') -> pd.DataFrame:
+                    nan_policy: str = 'raise',
+                    calc_intensity: bool = True) -> pd.DataFrame:
     """Build per-shot metadata from a smalldata HDF5 file.
 
     Args:
@@ -45,12 +46,15 @@ def create_metadata(h5: h5py.File,
     d = {}
     stack = h5[keydict.pop('stack')][..., *roi]
 
-    if nan_policy == 'raise':
-        intensity_in_roi = np.sum(stack, axis=(-1, -2))
-        if np.isnan(intensity_in_roi).any():
-            raise ValueError('Detector stack contains NaN values')
+    if calc_intensity is True:
+        if nan_policy == 'raise':
+            intensity_in_roi = np.sum(stack, axis=(-1, -2))
+            if np.isnan(intensity_in_roi).any():
+                raise ValueError('Detector stack contains NaN values')
+        else:
+            intensity_in_roi = np.nansum(stack, axis=(-1, -2))
     else:
-        intensity_in_roi = np.nansum(stack, axis=(-1, -2))
+        intensity_in_roi = np.full(stack.shape[0], np.nan)
 
     d['intensity_in_roi'] = intensity_in_roi
     d['shot_idx'] = np.arange(stack.shape[0])

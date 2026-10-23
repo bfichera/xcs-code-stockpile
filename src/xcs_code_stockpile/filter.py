@@ -10,7 +10,6 @@ def i0_min_max_filter(metadata: pd.DataFrame,
         metadata['xray_on'] &
         (metadata['i0'] > 0.0)
         & np.isfinite(metadata['i0'])
-        & np.isfinite(metadata['intensity_in_roi'])
     )
     valid_metadata = metadata[valid_input]
     i0_minimum = np.percentile(valid_metadata['i0'], i0_minimum_percentile)
