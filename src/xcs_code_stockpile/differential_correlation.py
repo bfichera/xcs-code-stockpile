@@ -3,9 +3,19 @@ from typing import Any, Optional, Union
 import h5py
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from ._utils import parsed_roi
 from .datahandler import H5Dictionary
+
+
+def _slow_mean_of_ims(stack, idx):
+    out = np.zeros(stack.shape[1:])
+    n = 0
+    for i in idx:
+        n += 1
+        out += stack[i, ...]
+    return out / n
 
 
 def _bin_edges(values: np.ndarray, interval: float):
@@ -210,6 +220,17 @@ def _correlation_dispatcher(reversibility_type: str):
         f'Reversibility type {reversibility_type} not implemented')
 
 
+def _twotime_dispatcher(reversibility_type: str):
+    if reversibility_type == 'strong':
+        return _strong_reversibility_difftwotime
+    elif reversibility_type == 'weak':
+        pass
+    elif reversibility_type == 'none':
+        pass
+    raise NotImplementedError(
+        f'Reversibility type {reversibility_type} not implemented')
+
+
 def differential_correlation(reversibility_type: str, *args: Any,
                              **kwargs: Any) -> pd.Series:
     """Calculate pump-on/pump-off correlation grouped by delay.
@@ -238,3 +259,105 @@ def differential_correlation(reversibility_type: str, *args: Any,
     """
     _diffcorr_func = _correlation_dispatcher(reversibility_type)
     return _diffcorr_func(*args, **kwargs)
+
+
+@parsed_roi
+def _strong_reversibility_difftwotime(
+        h5: h5py.File,
+        h5dict: H5Dictionary,
+        metadata: pd.DataFrame,
+        filter: np.ndarray,
+        delay_bin_interval: float,
+        labtime_bin_interval: float,
+        roi: Optional[Union[list[int], tuple[slice, slice]]] = None,
+        denominator_type: str = 'mean'):
+
+    metadata = metadata[filter].copy()
+
+    delay = metadata['delay'].to_numpy()
+    _bins = _bin_edges(delay, delay_bin_interval)
+    delay_bins = pd.cut(metadata['delay'],
+                        _bins,
+                        right=False,
+                        labels=_bins[:-1])
+    metadata['delay_bin'] = delay_bins
+
+    labtime = metadata['event_time'].to_numpy()
+    _bins = _bin_edges(labtime, labtime_bin_interval)
+    labtime_bins = pd.cut(metadata['event_time'],
+                          _bins,
+                          right=False,
+                          labels=_bins[:-1])
+    metadata['labtime_bin'] = labtime_bins
+    metadata = metadata.groupby('labtime_bin').filter(
+        lambda group: group['laser_on'].nunique() == 2)
+
+    stack = h5[h5dict.stack][..., *roi]
+
+    # For each labtime bin, we form a twotime
+    # Then we average the twotimes
+
+    # TODO
+    # A better estimate should be used which takes into account the number of
+    # frames we mean over but I don't have time to do it right now
+    n_delays = metadata['delay_bin'].nunique()
+    idx = np.arange(n_delays, dtype=int)
+    map_ = {ud: i for ud, i in zip(metadata['delay_bin'].unique(), idx)}
+    with tqdm(total=metadata['labtime_bin'].nunique()) as bar:
+        twotimes = []
+        for lab_idx, (labtime_bin, labtime_group) in enumerate(
+                metadata.groupby('labtime_bin')):
+            labtime_twotime = np.zeros((n_delays, n_delays))
+            labtime_group.to_csv('wtf.csv')
+            for i, (delay1,
+                    group1) in enumerate(labtime_group.groupby('delay_bin')):
+                for j, (delay2, group2) in enumerate(
+                        labtime_group.groupby('delay_bin')):
+                    if delay1 <= delay2:  # delay1 is always > delay2
+                        continue
+                    i_towrite = map_[delay1]
+                    j_towrite = map_[delay2]
+                    on_shots_idx1 = group1.loc[group1['laser_on'],
+                                               'shot_idx'].to_numpy()
+                    on_shots_idx2 = group2.loc[group2['laser_on'],
+                                               'shot_idx'].to_numpy()
+                    mean_on_shot1 = _slow_mean_of_ims(stack, on_shots_idx1)
+                    mean_on_shot2 = _slow_mean_of_ims(stack, on_shots_idx2)
+                    labtime_twotime[i_towrite, j_towrite] = _correlation_of_two_images(
+                        mean_on_shot1,
+                        mean_on_shot2,
+                        denominator_type=denominator_type)
+            bar.update()
+            twotimes.append(labtime_twotime)
+        twotime = np.mean(twotimes, axis=0)
+    return twotime + twotime.T
+
+
+def differential_twotime(reversibility_type: str, *args: Any,
+                         **kwargs: Any) -> pd.Series:
+    """Calculate pump-on/pump-off correlation grouped by delay.
+
+    Args:
+        reversibility_type: Correlation strategy: ``"strong"``, ``"weak"``,
+            or ``"none"``.
+        *args: Positional arguments forwarded to the selected strategy. All
+            strategies accept ``h5, h5dict, metadata, filter,
+            delay_bin_interval``. Strong and weak strategies additionally
+            require ``labtime_bin_interval``.
+        **kwargs: Forwarded analysis options, including ``roi`` and
+            ``denominator_type``. ``roi`` accepts ``[x0, x1, y0, y1]`` or a
+            ``(row_slice, column_slice)`` tuple. ``denominator_type`` accepts
+            ``"mean"`` or ``"std"``.
+
+    Returns:
+        A Series containing mean correlations, indexed by the left edge of
+        each delay bin. Strong and weak strategies compare within lab-time
+        bins; the no-reversibility strategy compares each pump-on shot with
+        its most recent preceding pump-off shot.
+
+    Raises:
+        NotImplementedError: If a reversibility or denominator type is not
+            supported.
+    """
+    _difftwotime_func = _twotime_dispatcher(reversibility_type)
+    return _difftwotime_func(*args, **kwargs)
