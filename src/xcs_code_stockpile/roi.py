@@ -76,6 +76,8 @@ class _ROI:
 
     @classmethod
     def _guess(cls, arg) -> '_ROI':
+        if isinstance(arg, cls):
+            return arg
         if len(arg) == 4:
             return cls.from_array(arg)
         if len(arg) == 2:

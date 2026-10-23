@@ -28,6 +28,18 @@ def parsed_roi(f):
     return g
 
 
+@parsed_roi
+def slow_mean(h5, h5dict, shots, roi=None):
+    stack = h5[h5dict.stack]
+    shape = h5[h5dict.stack][0, *roi].shape
+    out = np.zeros(shape)
+    n = len(shots)
+    for i in range(h5[h5dict.stack].shape[0]):
+        if i in shots:
+            out += stack[i, *roi] / n
+    return out
+
+
 @np.vectorize
 def ts_to_s(ts):
     sec = ts >> 32 & 0xffffffff
@@ -36,9 +48,10 @@ def ts_to_s(ts):
 
 
 def basic_off_type_encoder(laser_on):
+    laser_on = laser_on.astype(int)
     n_shots = len(laser_on)
-    off_type = []
     found_first_laser_on_shot = False
+    off_type = [np.nan for i in range(n_shots)]
     for i in range(n_shots):
         if laser_on[i]:
             found_first_laser_on_shot = True
@@ -57,10 +70,18 @@ def basic_off_type_encoder(laser_on):
                 next_next_laser_on_position += 1
                 if off_type[i + j] == 0:
                     for k in range(n_shots):
+                        if k == 0:
+                            continue
                         next_next_laser_on_position += 1
                         if off_type[i + j + k] == 0:
                             break
                     break
             off_type[i] = off_type[i + (next_next_laser_on_position -
                                         next_laser_on_position)]
-    return np.array(off_type)
+    off_type_str = []
+    for ot in off_type:
+        if ot == 0:
+            off_type_str.append(f'{ot:02d}_on')
+        else:
+            off_type_str.append(f'{ot:02d}_off')
+    return off_type_str

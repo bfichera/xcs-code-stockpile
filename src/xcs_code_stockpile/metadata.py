@@ -75,4 +75,5 @@ def create_metadata(h5: h5py.File,
         ]
     else:
         metadata['laser_off_type'] = laser_off_type_func(h5, *args, **kwargs)
+
     return metadata

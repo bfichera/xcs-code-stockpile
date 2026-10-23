@@ -3,6 +3,18 @@ import numpy as np
 import pandas as pd
 
 
+def common_enough_off_type_filter(metadata):
+    metadata = metadata.copy()
+    vc = metadata['laser_off_type'].value_counts(normalize=True)
+    typical_vc = np.mean(vc)
+    valid_filter = metadata['laser_off_type'].map(vc > 0.1 * typical_vc)
+    
+    filter = pd.Series(False, index=metadata.index)
+    filter.loc[metadata.index] = valid_filter
+
+    return filter
+
+
 def i0_min_max_filter(metadata: pd.DataFrame,
                       i0_minimum_percentile: float,
                       i0_maximum_percentile: float) -> pd.Series:
@@ -21,7 +33,7 @@ def i0_min_max_filter(metadata: pd.DataFrame,
     filter = pd.Series(False, index=metadata.index)
     filter.loc[valid_metadata.index] = valid_filter
 
-    return filter
+    return filter & common_enough_off_type_filter(metadata)
 
 
 def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
@@ -70,7 +82,7 @@ def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
     filter = pd.Series(False, index=metadata.index)
     filter.loc[valid_metadata.index] = valid_filter
 
-    return filter
+    return filter & common_enough_off_type_filter(metadata)
 
 
 def no_filter(metadata: pd.DataFrame) -> pd.Series:

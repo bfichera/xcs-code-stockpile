@@ -55,7 +55,7 @@ def _fwhm_1d(a, center):
 def calc_trxrd_stats(h5: h5py.File,
                      h5dict: H5Dictionary,
                      metadata: pd.DataFrame,
-                     filter: np.ndarray,
+                     filter: Union[np.ndarray, None],
                      bin_interval: float,
                      roi: Optional[Union[list[int], tuple[slice,
                                                           slice]]] = None,
@@ -81,7 +81,9 @@ def calc_trxrd_stats(h5: h5py.File,
     """
     # First we apply the filter
 
-    metadata = metadata[filter].copy()
+    breakpoint()
+    if filter is not None:
+        metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
     bins = np.arange(delay.min(), delay.max() + bin_interval, bin_interval)
