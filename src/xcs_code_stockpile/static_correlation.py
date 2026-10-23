@@ -42,17 +42,15 @@ def _g2_minus_one(twotime: np.ndarray):
 
 
 @parsed_roi
-def calc_static_correlation(h5: h5py.File,
-                            h5dict: H5Dictionary,
-                            metadata: pd.DataFrame,
-                            filter: np.ndarray,
-                            roi: Optional[Union[
-                                list[int], tuple[slice, slice]
-                            ]] = None,
-                             denominator_type: str = 'mean',
-                             ret_twotime: bool = False
-                             ) -> Union[np.ndarray,
-                                        tuple[np.ndarray, np.ndarray]]:
+def calc_static_correlation(
+    h5: h5py.File,
+    h5dict: H5Dictionary,
+    metadata: pd.DataFrame,
+    filter: np.ndarray,
+    roi: Optional[Union[list[int], tuple[slice, slice]]] = None,
+    denominator_type: str = 'mean',
+    ret_twotime: bool = False
+) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """Calculate an equilibrium correlation as a function of frame lag.
 
     Args:

@@ -9,6 +9,7 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 
 from .datahandler import H5Dictionary
+from ._utils import slow_mean, parsed_roi
 
 
 def fit_linear_i_vs_i0(
@@ -64,7 +65,10 @@ def plot_intensity_vs_i0(
     i0 = metadata['i0'].to_numpy()
 
     fig, ax = plt.subplots()
-    edgecolors = ['black' if metadata['valid'].to_numpy()[i] else 'red' for i in range(len(i0))]
+    edgecolors = [
+        'black' if metadata['valid'].to_numpy()[i] else 'red'
+        for i in range(len(i0))
+    ]
     ax.scatter(i0, i, edgecolors=edgecolors, marker='o', facecolors='none')
     model_x = np.linspace(i0.min(), i0.max(), 100)
     ax.plot(model_x,
@@ -138,12 +142,8 @@ def plot_intensity_vs_time(
     return fig
 
 
-def plot_detector_image(
-    h5: h5py.File,
-    h5dict: H5Dictionary,
-    samplerate: int,
-    **kws
-) -> Figure:
+def plot_detector_image(h5: h5py.File, h5dict: H5Dictionary, samplerate: int,
+                        **kws) -> Figure:
     """Plot the full detector.
 
     Args:
@@ -156,9 +156,35 @@ def plot_detector_image(
         A new Matplotlib Figure.
     """
     im = np.mean(h5[h5dict.stack][::samplerate, ...], axis=0)
-    if not 'vmin' in kws:
+    if 'vmin' not in kws:
         kws['vmin'] = np.percentile(im, 1)
-    if not 'vmax' in kws:
+    if 'vmax' not in kws:
+        kws['vmax'] = np.percentile(im, 99)
+    fig, ax = plt.subplots()
+    ax.imshow(im, **kws)
+    return fig
+
+
+@parsed_roi
+def plot_roi_image(h5: h5py.File, h5dict: H5Dictionary, metadata, filter=None, roi=None, **kws) -> Figure:
+    """Plot an roi, possibly filtered.
+
+    Args:
+        h5: h5py.File
+        h5dict: H5Dictionary
+        samplerate: int
+        kws: keywords to pass to plt.imshow
+
+    Returns:
+        A new Matplotlib Figure.
+    """
+    if filter is not None:
+        metadata = metadata[filter].copy()
+    valid_shots = metadata['shot_idx'].to_numpy()
+    im = slow_mean(h5, h5dict, valid_shots, roi=roi)
+    if 'vmin' not in kws:
+        kws['vmin'] = np.percentile(im, 1)
+    if 'vmax' not in kws:
         kws['vmax'] = np.percentile(im, 99)
     fig, ax = plt.subplots()
     ax.imshow(im, **kws)
