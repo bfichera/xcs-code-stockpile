@@ -305,7 +305,7 @@ def _strong_reversibility_difftwotime(
         twotimes = []
         for lab_idx, (labtime_bin, labtime_group) in enumerate(
                 metadata.groupby('labtime_bin')):
-            labtime_twotime = np.full((unique_delays, unique_delays), np.nan)
+            labtime_twotime = np.zeros((unique_delays, unique_delays))
             for i, (delay1,
                     group1) in enumerate(labtime_group.groupby('delay_bin')):
                 for j, (delay2, group2) in enumerate(
