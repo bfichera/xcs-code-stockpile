@@ -57,7 +57,9 @@ def calc_trxrd_stats(h5: h5py.File,
         metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
-    bins = _round_bins(np.arange(delay.min(), delay.max() + bin_interval, bin_interval))
+    bins = _round_bins(
+        np.arange(delay.min(),
+                  delay.max() + bin_interval, bin_interval), bin_interval)
     if bins[-1] <= delay.max():
         bins = np.append(bins, bins[-1] + bin_interval)
     delay_bins = pd.cut(metadata['delay'], bins, right=False, labels=bins[:-1])
@@ -133,7 +135,9 @@ def save_movie(h5: h5py.File,
     metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
-    bins = _round_bins(np.arange(delay.min(), delay.max() + bin_interval, bin_interval))
+    bins = _round_bins(
+        np.arange(delay.min(),
+                  delay.max() + bin_interval, bin_interval), bin_interval)
     if bins[-1] <= delay.max():
         bins = np.append(bins, bins[-1] + bin_interval)
     delay_bins = pd.cut(metadata['delay'], bins, right=False, labels=bins[:-1])

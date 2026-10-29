@@ -26,7 +26,9 @@ def _validate_metadata(metadata):
 
 
 def _bin_edges(values: np.ndarray, interval: float):
-    bins = _round_bins(np.arange(values.min(), values.max() + interval, interval))
+    bins = _round_bins(
+        np.arange(values.min(),
+                  values.max() + interval, interval), interval)
     if bins[-1] <= values.max():
         bins = np.append(bins, bins[-1] + interval)
     return bins
