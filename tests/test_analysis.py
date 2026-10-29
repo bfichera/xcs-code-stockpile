@@ -1,159 +1,24 @@
-import tempfile
+import sys
 import unittest
 from pathlib import Path
 
-import h5py
 import matplotlib
 import numpy as np
-import pandas as pd
-from scipy.ndimage import gaussian_filter, shift
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import xcs_code_stockpile as xcs
-from xcs_code_stockpile.sanity import (intensity_vs_i0,
-                                       plot_i0_vs_time,
+from xcs_code_stockpile.sanity import (plot_i0_vs_time,
                                        plot_intensity_vs_i0,
                                        plot_intensity_vs_time)
 
+sys.path.insert(0, str(Path(__file__).parent))
 
-class AnalysisTestCase(unittest.TestCase):
+from synthetic import SyntheticRunTestCase
 
-    def setUp(self):
-        self.tempdir = tempfile.TemporaryDirectory()
-        self.path = Path(self.tempdir.name) / 'smalldata.h5'
-        self.h5dict = xcs.H5Dictionary()
 
-        self.n_shots = 500
-        self.image_size = 100
-        self.correlation_roi = (slice(48, 53), slice(48, 53))
-        self.i0 = np.linspace(0.8, 1.2, self.n_shots)
-        self.event_time = np.arange(self.n_shots, dtype=float)
-        self.laser_on = np.tile([0, 1, 0, 1, 1], 100).astype(bool)
-
-        triangle = np.concatenate((np.arange(-20., 41.),
-                                   np.arange(40., -21., -1.)))
-        self.delay = np.resize(triangle, self.n_shots)
-        self.delay_values = np.arange(-20., 41.)
-
-        pixels = np.arange(self.image_size)
-        rows, cols = np.meshgrid(pixels, pixels, indexing='ij')
-        sigma = 13.
-
-        def gaussian(center_j):
-            return np.exp(-((rows - 49.5)**2 + (cols - center_j)**2) /
-                          (2 * sigma**2))
-
-        self.equilibrium_envelope = gaussian(45.)
-        self.delay_envelopes = {}
-        self.pump_speckle_displacement = {}
-        for delay in self.delay_values:
-            if delay < 0:
-                amplitude = 1.
-                center_j = 45.
-                displacement = 0.
-            else:
-                amplitude = (0.72 + 0.12 * np.exp(-delay / 60) *
-                             np.cos(2 * np.pi * delay / 60))
-                center_j = 55.
-                displacement = 2 * np.sin(2 * np.pi * delay / 30)
-            self.delay_envelopes[delay] = amplitude * gaussian(center_j)
-            self.pump_speckle_displacement[delay] = displacement
-
-        rng = np.random.default_rng(1)
-        rho = np.exp(-5 / 40)
-        field = np.zeros((self.image_size, self.image_size), dtype=complex)
-        self.labtime_speckles = []
-        for _ in range(100):
-            innovation = (rng.normal(size=field.shape) +
-                          1j * rng.normal(size=field.shape))
-            innovation = gaussian_filter(innovation.real, 0.3) + 1j * (
-                gaussian_filter(innovation.imag, 0.3))
-            innovation /= np.sqrt(np.mean(np.abs(innovation)**2))
-            field = rho * field + np.sqrt(1 - rho**2) * innovation
-            speckle = np.abs(field)**2
-            self.labtime_speckles.append(speckle / speckle.mean())
-        self.labtime_speckles = np.array(self.labtime_speckles)
-
-        normalized_stack = np.empty(
-            (self.n_shots, self.image_size, self.image_size))
-        for shot in range(self.n_shots):
-            delay = self.delay[shot]
-            envelope = (self.delay_envelopes[delay]
-                        if self.laser_on[shot]
-                        else self.equilibrium_envelope)
-            displacement = (self.pump_speckle_displacement[delay]
-                            if self.laser_on[shot] else 0.)
-            speckle = shift(self.labtime_speckles[shot // 5],
-                            shift=(0, displacement),
-                            order=1,
-                            mode='wrap')
-            image = envelope * speckle
-            normalized_stack[shot] = image * envelope.sum() / image.sum()
-        self.normalized_stack = normalized_stack
-        self.stack = normalized_stack * self.i0[:, None, None]
-        self.off_image = normalized_stack[0]
-        self.delay_images = {}
-        for delay in self.delay_values:
-            speckle = shift(self.labtime_speckles[0],
-                            shift=(0,
-                                   self.pump_speckle_displacement[delay]),
-                            order=1,
-                            mode='wrap')
-            image = self.delay_envelopes[delay] * speckle
-            self.delay_images[delay] = (
-                image * self.delay_envelopes[delay].sum() / image.sum())
-
-        with h5py.File(self.path, 'w') as h5:
-            h5.create_dataset(self.h5dict.stack, data=self.stack)
-            h5.create_dataset(self.h5dict.event_time, data=self.event_time)
-            h5.create_dataset(self.h5dict.laser_on, data=self.laser_on)
-            h5.create_dataset(self.h5dict.xray_on,
-                              data=np.ones(self.n_shots, dtype=int))
-            h5.create_dataset(self.h5dict.i0, data=self.i0)
-            h5.create_dataset(self.h5dict.delay, data=self.delay)
-
-        self.h5 = h5py.File(self.path, 'r')
-        self.metadata = xcs.create_metadata(self.h5, 144, self.h5dict)
-        self.shot_filter = xcs.sensible_filter(self.metadata, 0, 100, 0,
-                                                100)
-
-        self.static_filter = self.shot_filter & ~self.metadata['laser_on']
-
-        self.rocking_path = Path(self.tempdir.name) / 'rocking.h5'
-        self.rocking_angle = np.repeat(np.linspace(-1., 1., 100), 5)
-        rocking_envelope = (0.05 + np.exp(
-            -(self.rocking_angle / 0.22)**2 / 2))
-        self.rocking_stack = (self.off_image[None, ...] *
-                              rocking_envelope[:, None, None])
-        with h5py.File(self.rocking_path, 'w') as h5:
-            h5.create_dataset(self.h5dict.stack, data=self.rocking_stack)
-            h5.create_dataset(self.h5dict.event_time,
-                              data=np.arange(self.n_shots, dtype=float))
-            h5.create_dataset(self.h5dict.laser_on,
-                              data=np.zeros(self.n_shots, dtype=int))
-            h5.create_dataset(self.h5dict.xray_on,
-                              data=np.ones(self.n_shots, dtype=int))
-            h5.create_dataset(self.h5dict.i0,
-                              data=np.ones(self.n_shots))
-            h5.create_dataset(self.h5dict.delay,
-                              data=np.zeros(self.n_shots))
-
-        self.rocking_h5 = h5py.File(self.rocking_path, 'r')
-        self.rocking_metadata = xcs.create_metadata(
-            self.rocking_h5, 145, self.h5dict)
-        self.rocking_metadata['angle'] = self.rocking_angle
-        self.rocking_filter = np.ones(self.n_shots, dtype=bool)
-
-    def tearDown(self):
-        self.h5.close()
-        self.rocking_h5.close()
-        self.tempdir.cleanup()
-
-    @staticmethod
-    def correlation(im1, im2):
-        return np.mean(im1 * im2) / np.mean(im1) / np.mean(im2) - 1
+class AnalysisTestCase(SyntheticRunTestCase):
 
     def test_synthetic_run(self):
         np.testing.assert_array_equal(self.delay[:61], np.arange(-20., 41.))
@@ -205,22 +70,6 @@ class AnalysisTestCase(unittest.TestCase):
         expected = self.stack[:, 10:90, 20:80].sum(axis=(-1, -2))
         np.testing.assert_allclose(roi_metadata['intensity_in_roi'], expected)
 
-    def test_intensity_vs_i0(self):
-        result = xcs.intensity_vs_i0(self.metadata)
-        self.assertEqual(len(result), np.count_nonzero(~self.laser_on))
-        np.testing.assert_allclose(result['i0'], self.i0[~self.laser_on])
-        np.testing.assert_allclose(result['intensity'],
-                                   self.off_image.sum() *
-                                   self.i0[~self.laser_on])
-        self.assertAlmostEqual(result.attrs['beta'], self.off_image.sum())
-        self.assertAlmostEqual(result.attrs['intercept'], 0.)
-        self.assertAlmostEqual(result.attrs['R^2'], 1.)
-
-        selected = pd.Series(np.arange(self.n_shots) < 50)
-        result = xcs.intensity_vs_i0(self.metadata, filter=selected)
-        expected = selected & ~self.metadata['laser_on']
-        np.testing.assert_allclose(result['i0'], self.i0[expected])
-
     def test_sanity_plot_filters(self):
         selected = np.arange(self.n_shots) < 50
         figures = [
@@ -228,9 +77,8 @@ class AnalysisTestCase(unittest.TestCase):
             xcs.plot_i0_vs_time(self.metadata, filter=selected),
             xcs.plot_intensity_vs_time(self.metadata, filter=selected),
         ]
-        expected_off = np.count_nonzero(selected & ~self.laser_on)
         self.assertEqual(figures[0].axes[0].collections[0].get_offsets().shape[0],
-                         expected_off)
+                         self.n_shots)
         self.assertEqual(len(figures[1].axes[0].lines[0].get_xdata()), 50)
         self.assertEqual(len(figures[2].axes[0].lines[0].get_xdata()), 50)
         for figure in figures:
@@ -264,6 +112,7 @@ class AnalysisTestCase(unittest.TestCase):
         expected_twotime = flat @ flat.T / flat.shape[1]
         expected_twotime /= means[:, None] * means
         expected_twotime -= 1
+        np.fill_diagonal(expected_twotime, np.nan)
         np.testing.assert_allclose(twotime, expected_twotime)
         self.assertTrue(np.isnan(g2_minus_one[0]))
         short_lag_contrast = np.mean(g2_minus_one[1:11])
@@ -289,6 +138,7 @@ class AnalysisTestCase(unittest.TestCase):
         std = flat.std(axis=1)
         expected_std_twotime = centered @ centered.T / flat.shape[1]
         expected_std_twotime /= std[:, None] * std
+        np.fill_diagonal(expected_std_twotime, np.nan)
         np.testing.assert_allclose(std_twotime, expected_std_twotime)
         expected_std = [
             np.diagonal(expected_std_twotime, offset=i).mean()
@@ -350,6 +200,7 @@ class AnalysisTestCase(unittest.TestCase):
                 shot_filter,
                 bin_interval=1,
             )
+            prefix = 'on_' if laser_on else 'off_'
             metadata = self.metadata[shot_filter]
             delay_group = np.floor(metadata['delay'])
             for delay_bin, group in metadata.groupby(delay_group):
@@ -357,12 +208,12 @@ class AnalysisTestCase(unittest.TestCase):
                 shots = group['shot_idx'].to_numpy()
                 sums = self.stack[shots].sum(axis=(-1, -2))
                 mean_i0 = group['i0'].mean()
-                self.assertAlmostEqual(actual['intensity_mean'],
+                self.assertAlmostEqual(actual[prefix + 'intensity_mean'],
                                        np.mean(sums) / mean_i0)
                 self.assertAlmostEqual(
-                    actual['intensity_stderr'],
+                    actual[prefix + 'intensity_stderr'],
                     np.std(sums) / np.sqrt(len(group)) / mean_i0)
-                self.assertEqual(actual['n_shots'], len(group))
+                self.assertEqual(actual[prefix + 'n_shots'], len(group))
 
                 mean_im = self.stack[shots].mean(axis=0)
                 rows = mean_im.sum(axis=1)
@@ -376,10 +227,10 @@ class AnalysisTestCase(unittest.TestCase):
                 fwhm_j = np.sqrt(
                     np.sum(cols * (pixels - com_j)**2) /
                     cols.sum()) * 2.335
-                self.assertAlmostEqual(actual['com_i'], com_i)
-                self.assertAlmostEqual(actual['com_j'], com_j)
-                self.assertAlmostEqual(actual['fwhm_i'], fwhm_i)
-                self.assertAlmostEqual(actual['fwhm_j'], fwhm_j)
+                self.assertAlmostEqual(actual[prefix + 'com_i'], com_i)
+                self.assertAlmostEqual(actual[prefix + 'com_j'], com_j)
+                self.assertAlmostEqual(actual[prefix + 'fwhm_i'], fwhm_i)
+                self.assertAlmostEqual(actual[prefix + 'fwhm_j'], fwhm_j)
 
     def test_rocking_stats(self):
         result = xcs.calc_rocking_stats(
@@ -469,12 +320,13 @@ class AnalysisTestCase(unittest.TestCase):
         axes[1, 0].set_title('Differential correlation')
         axes[1, 0].set_xlabel('Delay-bin left edge')
         axes[1, 0].legend()
-        for laser_state, color, label in [(False, 'blue', 'Laser off'),
-                                          (True, 'red', 'Laser on')]:
+        for laser_state, prefix, color, label in [
+                (False, 'off', 'blue', 'Laser off'),
+                (True, 'on', 'red', 'Laser on')]:
             result = trxrd[laser_state]
             axes[1, 1].errorbar(result.index,
-                                result['intensity_mean'],
-                                yerr=result['intensity_stderr'],
+                                result[f'{prefix}_intensity_mean'],
+                                yerr=result[f'{prefix}_intensity_stderr'],
                                 marker='o',
                                 color=color,
                                 label=label)
