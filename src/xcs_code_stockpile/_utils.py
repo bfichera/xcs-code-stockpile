@@ -2,6 +2,7 @@ from functools import wraps
 from datetime import datetime
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from .roi import _ROI
 
@@ -31,7 +32,7 @@ def parsed_roi(f):
 @parsed_roi
 def slow_mean(h5, h5dict, shots, roi=None):
     stack = h5[h5dict.stack]
-    shape = h5[h5dict.stack][0, *roi].shape
+    shape = stack[0, *roi].shape
     out = np.zeros(shape)
     n = len(shots)
     for i in range(h5[h5dict.stack].shape[0]):
@@ -39,6 +40,25 @@ def slow_mean(h5, h5dict, shots, roi=None):
             out += stack[i, *roi] / n
     return out
 
+
+@parsed_roi
+def slow_sum(h5, h5dict, shots, roi=None):
+    stack = h5[h5dict.stack]
+    shape = h5[h5dict.stack][0, *roi].shape
+    out = np.zeros(shape)
+    for i in range(h5[h5dict.stack].shape[0]):
+        if i in shots:
+            out += stack[i, *roi]
+    return out
+
+
+@parsed_roi
+def slow_intensities(h5, h5dict, shots, roi=None):
+    stack = h5[h5dict.stack]
+    out = np.zeros(len(shots))
+    for i, shot_idx in enumerate(shots):
+        out[i] = np.sum(stack[shot_idx, *roi])
+    return out
 
 @np.vectorize
 def ts_to_s(ts):
@@ -81,7 +101,38 @@ def basic_off_type_encoder(laser_on):
     off_type_str = []
     for ot in off_type:
         if ot == 0:
-            off_type_str.append(f'{ot:02d}_on')
+            off_type_str.append(f'{ot:03d}_on')
         else:
-            off_type_str.append(f'{ot:02d}_off')
+            off_type_str.append(f'{ot:03d}_off')
     return off_type_str
+
+
+def save_array_to_movie(ims: np.ndarray,
+                        path: Optional[PathLike] = None,
+                        vmin: Optional[float] = None,
+                        vmax: Optional[float] = None,
+                        cmap: str = 'viridis',
+                        first_frame_repeats: int = 15):
+    import imageio
+    if vmin is None:
+        vmin = np.nanmin(ims)
+    if vmax is None:
+        vmax = np.nanmax(ims)
+    ims = np.clip(ims, vmin, vmax)
+    regulated_ims = ((ims - np.nanmin(ims)) /
+                     (np.nanmax(ims) - np.nanmin(ims)))
+    cmap = plt.get_cmap(cmap)
+    rgba_array = cmap(regulated_ims)
+    rgb_array = rgba_array[..., :3]
+    rgb_uint8 = (rgb_array * 255.0).astype(np.uint8)
+    repeated_ims = []
+    for i in range(rgb_uint8.shape[0]):
+        if i == 0:
+            for j in range(first_frame_repeats):
+                repeated_ims.append(rgb_uint8[i, ...])
+        else:
+            repeated_ims.append(rgb_uint8[i, ...])
+
+    if path is not None:
+        imageio.mimsave(path, repeated_ims, fps=30)
+    return regulated_ims

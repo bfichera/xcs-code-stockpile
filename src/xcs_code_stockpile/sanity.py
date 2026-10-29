@@ -155,7 +155,8 @@ def plot_detector_image(h5: h5py.File, h5dict: H5Dictionary, samplerate: int,
     Returns:
         A new Matplotlib Figure.
     """
-    im = np.mean(h5[h5dict.stack][::samplerate, ...], axis=0)
+    n_shots = h5[h5dict.stack].shape[0]
+    im = slow_mean(h5, h5dict, np.arange(n_shots)[::samplerate], roi=None)
     if 'vmin' not in kws:
         kws['vmin'] = np.percentile(im, 1)
     if 'vmax' not in kws:

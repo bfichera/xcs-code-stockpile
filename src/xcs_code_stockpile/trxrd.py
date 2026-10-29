@@ -11,38 +11,7 @@ from scipy.ndimage import center_of_mass
 import matplotlib.pyplot as plt
 
 from .datahandler import H5Dictionary
-from ._utils import parsed_roi
-
-
-def save_array_to_movie(ims: np.ndarray,
-                        path: Optional[PathLike] = None,
-                        vmin: Optional[float] = None,
-                        vmax: Optional[float] = None,
-                        cmap: str = 'viridis',
-                        first_frame_repeats: int = 15):
-    import imageio
-    if vmin is None:
-        vmin = np.nanmin(ims)
-    if vmax is None:
-        vmax = np.nanmax(ims)
-    ims = np.clip(ims, vmin, vmax)
-    regulated_ims = ((ims - np.nanmin(ims)) /
-                     (np.nanmax(ims) - np.nanmin(ims)))
-    cmap = plt.get_cmap(cmap)
-    rgba_array = cmap(regulated_ims)
-    rgb_array = rgba_array[..., :3]
-    rgb_uint8 = (rgb_array * 255.0).astype(np.uint8)
-    repeated_ims = []
-    for i in range(rgb_uint8.shape[0]):
-        if i == 0:
-            for j in range(first_frame_repeats):
-                repeated_ims.append(rgb_uint8[i, ...])
-        else:
-            repeated_ims.append(rgb_uint8[i, ...])
-
-    if path is not None:
-        imageio.mimsave(path, repeated_ims, fps=30)
-    return regulated_ims
+from ._utils import parsed_roi, save_array_to_movie
 
 
 def _fwhm_1d(a, center):
