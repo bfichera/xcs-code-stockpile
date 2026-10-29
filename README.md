@@ -11,11 +11,14 @@ pip install git+https://github.com/bfichera/xcs-code-stockpile.git
 ## Requirements
 
 -   `h5py`
+-   `imageio`
 -   `matplotlib`
 -   `numpy`
 -   `pandas`
+-   `pydantic`
 -   `scikit-learn`
 -   `scipy`
+-   `tqdm`
 
 ## Usage
 
@@ -27,12 +30,12 @@ need to use seem to change all the time.
 To remediate this, we use a data type called an H5Dictionary, instantiated as:
 
 ```
-import xcs_code_stockpiles as xcs
+import xcs_code_stockpile as xcs
 h5dict = xcs.H5Dictionary(
     stack='/jungfrau1M/ROI_area',
     laser_on='evr/code_41',
     delay='scan/awg_delay_ns_delay',
-    measured_voltage='ai/ch04'
+    measured_voltage='ai/ch04',
     i0=lambda h5: h5['diodeGon/channels'][..., 0],
 )
 ```
@@ -257,7 +260,3 @@ Anyways this is all implemented in `differential_correlation`, look at the
 documentation for the typical signature!
 
 There is also `differential_twotime` defined as well.
-
-```
-
-```

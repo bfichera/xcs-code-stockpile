@@ -5,15 +5,7 @@ repo_url: https://github.com/bfichera/xcs-code-stockpile
 repo_name: bfichera/xcs-code-stockpile
 
 nav:
-  - Home: index.md
-  - Getting started: getting-started.md
-  - Data model:
-      - HDF5 and metadata: data-model.md
-      - Regions of interest: roi.md
-  - Analysis guide:
-      - Correlations: correlations.md
-      - Diffraction: diffraction.md
-      - Diagnostics: diagnostics.md
+  - Getting started: index.md
   - API reference:
       - Overview: reference/index.md
       - Data loading: reference/datahandler.md
