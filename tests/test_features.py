@@ -194,6 +194,86 @@ class OffTypeEncoderTestCase(unittest.TestCase):
             '001_off', '002_off', '000_on'
         ])
 
+    def test_leading_off_shots_with_multiple_on_shots_per_period(self):
+        laser_on = np.array([0, 1, 0, 1, 1, 0, 1, 0, 1, 1])
+        self.assertEqual(xcs.basic_off_type_encoder(laser_on), [
+            '001_off', '000_on', '001_off', '000_on', '000_on', '001_off',
+            '000_on', '001_off', '000_on', '000_on'
+        ])
+
+    def test_long_leading_off_run_is_filled_across_periods(self):
+        laser_on = np.tile([1, 0, 0, 0], 50)[3:]
+        encoded = xcs.basic_off_type_encoder(laser_on)
+        self.assertEqual(encoded[:6], [
+            '003_off', '000_on', '001_off', '002_off', '003_off', '000_on'
+        ])
+        laser_on = np.tile([1, 0, 0, 0, 0, 0, 0, 0, 0, 0], 50)[1:]
+        encoded = xcs.basic_off_type_encoder(laser_on)
+        self.assertEqual(encoded[:10], [f'{i:03d}_off' for i in range(1, 10)] +
+                         ['000_on'])
+
+    def test_no_on_shots(self):
+        self.assertEqual(xcs.basic_off_type_encoder(np.array([0, 0, 0])),
+                         ['unknown_off'] * 3)
+
+    def test_empty_input(self):
+        self.assertEqual(xcs.basic_off_type_encoder(np.array([], dtype=int)),
+                         [])
+
+    def test_not_enough_data_for_period_gives_unknown(self):
+        laser_on = np.array([0, 0, 1, 0, 0])
+        self.assertEqual(xcs.basic_off_type_encoder(laser_on), [
+            'unknown_off', 'unknown_off', '000_on', '001_off', '002_off'
+        ])
+
+    def test_off_shot_never_labelled_on(self):
+        rng = np.random.default_rng(0)
+        for laser_on in [
+                np.array([0, 0, 1, 0, 1]),
+                np.array([0, 1, 0, 0, 1, 0, 1, 0, 0, 1]),
+                rng.random(200) < 0.5,
+                np.tile([0, 0, 1, 1], 30),
+        ]:
+            encoded = xcs.basic_off_type_encoder(laser_on)
+            for lon, ot in zip(laser_on, encoded):
+                self.assertEqual(ot.endswith('_on'), bool(lon))
+
+    def test_leading_shot_that_should_be_on_is_unknown(self):
+        laser_on = np.tile([0, 0, 1], 20)
+        laser_on[2] = 0
+        encoded = xcs.basic_off_type_encoder(laser_on)
+        self.assertEqual(encoded[:6], [
+            '001_off', '002_off', 'unknown_off', '001_off', '002_off',
+            '000_on'
+        ])
+
+    def test_unknown_label(self):
+        encoded = xcs.basic_off_type_encoder(np.array([0, 0]),
+                                             unknown_label='?')
+        self.assertEqual(encoded, ['?', '?'])
+
+    def test_period_robust_to_dropped_on_shots(self):
+        from xcs_code_stockpile._utils import _estimate_period
+        rng = np.random.default_rng(0)
+        for pattern in [[0, 1, 0, 1, 1], [1, 0, 0, 0], [1, 0],
+                        [1] + [0] * 11, [1] + [0] * 99]:
+            base = np.tile(pattern, 2000 // len(pattern)).astype(bool)
+            for p_drop in [0., 0.02, 0.1]:
+                laser_on = base & (rng.random(base.size) >= p_drop)
+                self.assertEqual(_estimate_period(laser_on), len(pattern),
+                                 (pattern, p_drop))
+        self.assertIsNone(_estimate_period(rng.random(1000) < 0.5))
+
+    def test_max_period(self):
+        from xcs_code_stockpile._utils import _estimate_period
+        laser_on = np.tile([1] + [0] * 199, 5).astype(bool)
+        self.assertEqual(_estimate_period(laser_on), 200)
+        self.assertIsNone(_estimate_period(laser_on, max_period=100))
+        encoded = xcs.basic_off_type_encoder(laser_on[1:], max_period=100)
+        self.assertEqual(encoded[0], 'unknown_off')
+        encoded = xcs.basic_off_type_encoder(laser_on[1:])
+        self.assertEqual(encoded[0], '001_off')
+
     def test_accepts_boolean_input(self):
         laser_on = np.tile([0, 1, 0, 1, 1], 4).astype(bool)
         encoded = xcs.basic_off_type_encoder(laser_on)
@@ -767,13 +847,26 @@ class DifferentialTwotimeTestCase(SyntheticRunTestCase):
             twotime[1, 0],
             np.corrcoef(mean_on[1].ravel(), mean_on[0].ravel())[0, 1])
 
-    def test_many_labtime_bins_has_no_nans(self):
+    def test_many_labtime_bins_nan_only_where_delays_never_cooccur(self):
         twotime, _ = self.run_in_tempdir(
             xcs.differential_twotime, 'strong', self.h5, self.h5dict,
             self.metadata, self.shot_filter, 10, 5,
             roi=self.correlation_roi)
-        off_diagonal = ~np.eye(twotime.shape[0], dtype=bool)
-        self.assertFalse(np.isnan(twotime[off_diagonal]).any())
+        n_bins = twotime.shape[0]
+        cooccur = np.zeros((n_bins, n_bins), dtype=bool)
+        for start in range(0, self.n_shots, 5):
+            shots = np.arange(start, start + 5)
+            if self.laser_on[shots].all() or not self.laser_on[shots].any():
+                continue
+            on_shots = shots[self.laser_on[shots]]
+            bins = np.unique(((self.delay[on_shots] + 20) // 10).astype(int))
+            cooccur[np.ix_(bins, bins)] = True
+        np.fill_diagonal(cooccur, False)
+        self.assertTrue(cooccur.any())
+        self.assertFalse(np.isnan(twotime[cooccur]).any())
+        off_diagonal = ~np.eye(n_bins, dtype=bool)
+        self.assertTrue(np.isnan(twotime[off_diagonal & ~cooccur]).all())
+        np.testing.assert_allclose(twotime, twotime.T)
 
     def test_unimplemented_reversibility_types(self):
         for reversibility_type in ['weak', 'none', 'medium']:

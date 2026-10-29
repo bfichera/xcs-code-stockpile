@@ -9,6 +9,8 @@ from ._utils import parsed_roi
 
 
 def _twotime(stack: np.ndarray, denominator_type: str = 'mean'):
+    # TODO
+    # I guess this overflows sometimes? Probably bad?
     if denominator_type not in ['mean', 'std', 'nanmean', 'nanstd']:
         raise NotImplementedError(
             f'Denominator type {denominator_type} not implemented')
@@ -20,7 +22,12 @@ def _twotime(stack: np.ndarray, denominator_type: str = 'mean'):
         mean_ = np.mean
         std_ = np.std
     mn = mean_(wf, axis=0)
-    numerator = (wf.T @ wf) / wf.shape[0]
+    if denominator_type.startswith('nan'):
+        valid = (~np.isnan(wf)).astype(float)
+        filled = np.nan_to_num(wf)
+        numerator = (filled.T @ filled) / (valid.T @ valid)
+    else:
+        numerator = (wf.T @ wf) / wf.shape[0]
     if denominator_type.endswith('mean'):
         denominator = mn[:, None] * mn
         offset = 1

@@ -7,18 +7,19 @@ import numpy as np
 import pandas as pd
 
 from .datahandler import H5Dictionary
-from ._utils import parsed_roi, slow_mean, slow_intensities, save_array_to_movie
+from ._utils import (parsed_roi, slow_mean, slow_intensities,
+                     save_array_to_movie)
 
 
 @parsed_roi
-def calc_rocking_stats(h5: h5py.File,
-                       h5dict: H5Dictionary,
-                       scan_variable: str,
-                       metadata: pd.DataFrame,
-                       filter: Union[np.ndarray, None],
-                       roi: Optional[Union[
-                           list[int], tuple[slice, slice]
-                       ]] = None) -> pd.DataFrame:
+def calc_rocking_stats(
+    h5: h5py.File,
+    h5dict: H5Dictionary,
+    scan_variable: str,
+    metadata: pd.DataFrame,
+    filter: Union[np.ndarray, None],
+    roi: Optional[Union[list[int], tuple[slice,
+                                         slice]]] = None) -> pd.DataFrame:
     """Calculate integrated-intensity statistics for a rocking scan.
 
     Args:
@@ -45,24 +46,26 @@ def calc_rocking_stats(h5: h5py.File,
         intensities = slow_intensities(h5, h5dict, shots, roi=roi)
         n_shots = len(shots)
         return pd.Series({
-            'intensity_mean': np.mean(intensities) / mean_i0,
-            'intensity_stderr': np.std(intensities) / np.sqrt(n_shots) / mean_i0,
-            'n_shots': n_shots
+            'intensity_mean':
+            np.mean(intensities) / mean_i0,
+            'intensity_stderr':
+            np.std(intensities) / np.sqrt(n_shots) / mean_i0,
+            'n_shots':
+            n_shots
         })
 
     return metadata.groupby(scan_variable).apply(func)
 
 
-def save_rocking_movie(h5: h5py.File,
-                       h5dict: H5Dictionary,
-                       scan_variable: str,
-                       metadata: pd.DataFrame,
-                       filter: Union[np.ndarray, None],
-                       save_dir: PathLike,
-                       fname: str = '',
-                       roi: Optional[Union[
-                           list[int], tuple[slice, slice]
-                       ]] = None) -> pd.DataFrame:
+def save_rocking_movie(
+        h5: h5py.File,
+        h5dict: H5Dictionary,
+        scan_variable: str,
+        metadata: pd.DataFrame,
+        filter: Union[np.ndarray, None],
+        save_dir: PathLike,
+        fname: str = 'rocking.gif',
+        roi: Optional[Union[list[int], tuple[slice, slice]]] = None) -> None:
 
     if filter is not None:
         metadata = metadata[filter].copy()

@@ -7,7 +7,7 @@ name = "xcs-code-stockpile"
 version = "0.1.0"
 description = "A collection of correlation calculations...and more! For the XCS hutch at LCLS"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "h5py",
     "matplotlib",
@@ -15,6 +15,9 @@ dependencies = [
     "pandas",
     "scikit-learn",
     "scipy",
+    "tqdm",
+    "pydantic",
+    "imageio"
 ]
 
 [project.optional-dependencies]

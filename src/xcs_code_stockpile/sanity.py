@@ -15,7 +15,7 @@ from ._utils import slow_mean, parsed_roi
 def fit_linear_i_vs_i0(
     metadata: pd.DataFrame,
     filter: Optional[Union[np.ndarray, pd.Series]] = None,
-) -> pd.DataFrame:
+) -> tuple[float]:
     """Fit pump-off ROI intensity as a linear function of incident intensity.
 
     Args:
@@ -167,7 +167,14 @@ def plot_detector_image(h5: h5py.File, h5dict: H5Dictionary, samplerate: int,
 
 
 @parsed_roi
-def plot_roi_image(h5: h5py.File, h5dict: H5Dictionary, metadata, filter=None, roi=None, **kws) -> Figure:
+def plot_roi_image(
+    h5: h5py.File,
+    h5dict: H5Dictionary,
+    metadata: pd.DataFrame,
+    filter: Optional[Union[np.ndarray, pd.Series]] = None,
+    roi=None,
+    **kws,
+) -> Figure:
     """Plot an roi, possibly filtered.
 
     Args:

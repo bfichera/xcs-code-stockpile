@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from ._utils import parsed_roi
+from ._utils import parsed_roi, _round_bins
 from .datahandler import H5Dictionary
 
 
@@ -19,14 +19,14 @@ def _slow_mean_of_ims(stack, idx):
 
 
 def _validate_metadata(metadata):
-    if metadata['off_types'].nunique() > 2:
+    if metadata['laser_off_type'].nunique() > 2:
         raise NotImplementedError(
             'Differential correlation is only implemented for two off types'
             ' (laser on, and laser off)')
 
 
 def _bin_edges(values: np.ndarray, interval: float):
-    bins = np.arange(values.min(), values.max() + interval, interval)
+    bins = _round_bins(np.arange(values.min(), values.max() + interval, interval))
     if bins[-1] <= values.max():
         bins = np.append(bins, bins[-1] + interval)
     return bins
@@ -35,6 +35,8 @@ def _bin_edges(values: np.ndarray, interval: float):
 def _correlation_of_two_images(im1: np.ndarray,
                                im2: np.ndarray,
                                denominator_type: str = 'mean'):
+    # TODO
+    # This also overflows sometimes?
     if denominator_type.startswith('nan'):
         mean_ = np.nanmean
         std_ = np.nanstd
@@ -61,9 +63,10 @@ def _strong_reversibility_diffcorr(h5: h5py.File,
                                                        tuple[slice,
                                                              slice]]] = None,
                                    denominator_type: str = 'mean'):
-    _validate_metadata(metadata)
 
     metadata = metadata[filter].copy()
+
+    _validate_metadata(metadata)
 
     delay = metadata['delay'].to_numpy()
     _bins = _bin_edges(delay, delay_bin_interval)
@@ -122,9 +125,10 @@ def _weak_reversibility_diffcorr(h5: h5py.File,
                                                      tuple[slice,
                                                            slice]]] = None,
                                  denominator_type: str = 'mean'):
-    _validate_metadata(metadata)
 
     metadata = metadata[filter].copy()
+
+    _validate_metadata(metadata)
 
     delay = metadata['delay'].to_numpy()
     _bins = _bin_edges(delay, delay_bin_interval)
@@ -180,9 +184,10 @@ def _none_reversibility_diffcorr(h5: h5py.File,
                                                      tuple[slice,
                                                            slice]]] = None,
                                  denominator_type: str = 'mean'):
-    _validate_metadata(metadata)
 
     metadata = metadata[filter].copy()
+
+    _validate_metadata(metadata)
 
     delay = metadata['delay'].to_numpy()
     _bins = _bin_edges(delay, delay_bin_interval)
@@ -312,13 +317,15 @@ def _strong_reversibility_difftwotime(
     # frames we mean over but I don't have time to do it right now
     n_delays = metadata['delay_bin'].nunique()
     idx = np.arange(n_delays, dtype=int)
-    map_ = {ud: i for ud, i in zip(metadata['delay_bin'].unique(), idx)}
+    map_ = {
+        ud: i
+        for ud, i in zip(sorted(metadata['delay_bin'].unique()), idx)
+    }
     with tqdm(total=metadata['labtime_bin'].nunique()) as bar:
         twotimes = []
         for lab_idx, (labtime_bin, labtime_group) in enumerate(
                 metadata.groupby('labtime_bin')):
-            labtime_twotime = np.zeros((n_delays, n_delays))
-            labtime_group.to_csv('wtf.csv')
+            labtime_twotime = np.full((n_delays, n_delays), np.nan)
             for i, (delay1,
                     group1) in enumerate(labtime_group.groupby('delay_bin')):
                 for j, (delay2, group2) in enumerate(
@@ -331,20 +338,23 @@ def _strong_reversibility_difftwotime(
                                                'shot_idx'].to_numpy()
                     on_shots_idx2 = group2.loc[group2['laser_on'],
                                                'shot_idx'].to_numpy()
+                    if on_shots_idx1.size * on_shots_idx2.size == 0:
+                        continue
                     mean_on_shot1 = _slow_mean_of_ims(stack, on_shots_idx1)
                     mean_on_shot2 = _slow_mean_of_ims(stack, on_shots_idx2)
-                    labtime_twotime[i_towrite, j_towrite] = _correlation_of_two_images(
-                        mean_on_shot1,
-                        mean_on_shot2,
-                        denominator_type=denominator_type)
+                    labtime_twotime[i_towrite,
+                                    j_towrite] = _correlation_of_two_images(
+                                        mean_on_shot1,
+                                        mean_on_shot2,
+                                        denominator_type=denominator_type)
             bar.update()
             twotimes.append(labtime_twotime)
-        twotime = np.mean(twotimes, axis=0)
-    return twotime + twotime.T
+        twotime = np.nanmean(twotimes, axis=0)
+    return np.where(np.isnan(twotime), twotime.T, twotime)
 
 
 def differential_twotime(reversibility_type: str, *args: Any,
-                         **kwargs: Any) -> pd.Series:
+                         **kwargs: Any) -> np.ndarray:
     """Calculate pump-on/pump-off correlation grouped by delay.
 
     Args:

@@ -8,16 +8,15 @@ import h5py
 import numpy as np
 import pandas as pd
 from scipy.ndimage import center_of_mass
-import matplotlib.pyplot as plt
 
 from .datahandler import H5Dictionary
-from ._utils import parsed_roi, save_array_to_movie
+from ._utils import parsed_roi, save_array_to_movie, _round_bins
 
 
 def _fwhm_1d(a, center):
     x = np.arange(a.shape[0]) - center
     sigma = np.sqrt(np.sum(a * x**2) / np.sum(a))
-    return sigma * 2.335
+    return sigma * 2.355
 
 
 @parsed_roi
@@ -50,12 +49,11 @@ def calc_trxrd_stats(h5: h5py.File,
     """
     # First we apply the filter
 
-    breakpoint()
     if filter is not None:
         metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
-    bins = np.arange(delay.min(), delay.max() + bin_interval, bin_interval)
+    bins = _round_bins(np.arange(delay.min(), delay.max() + bin_interval, bin_interval))
     if bins[-1] <= delay.max():
         bins = np.append(bins, bins[-1] + bin_interval)
     delay_bins = pd.cut(metadata['delay'], bins, right=False, labels=bins[:-1])
@@ -106,11 +104,11 @@ def save_movie(h5: h5py.File,
                fname_prefix: str = '',
                roi: Optional[Union[list[int], tuple[slice, slice]]] = None,
                on_types: list[Hashable] = ['on'],
-               off_types: list[Hashable] = ['off']) -> pd.DataFrame:
+               off_types: list[Hashable] = ['off']) -> None:
     metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
-    bins = np.arange(delay.min(), delay.max() + bin_interval, bin_interval)
+    bins = _round_bins(np.arange(delay.min(), delay.max() + bin_interval, bin_interval))
     if bins[-1] <= delay.max():
         bins = np.append(bins, bins[-1] + bin_interval)
     delay_bins = pd.cut(metadata['delay'], bins, right=False, labels=bins[:-1])
@@ -129,8 +127,10 @@ def save_movie(h5: h5py.File,
                               off_type]['shot_idx'].to_numpy()
             on_substack = stack[on_shots, ...]
             off_substack = stack[off_shots, ...]
-            on_mean_i0 = np.mean(group[group['laser_on']]['i0'])
-            off_mean_i0 = np.mean(group[~group['laser_on']]['i0'])
+            on_mean_i0 = np.mean(group.loc[group['laser_off_type'] == on_type,
+                                           'i0'])
+            off_mean_i0 = np.mean(
+                group.loc[group['laser_off_type'] == off_type, 'i0'])
             mean_on_im = np.mean(on_substack, axis=0)
             mean_off_im = np.mean(off_substack, axis=0)
             mean_normalized_on_im = mean_on_im / on_mean_i0
@@ -159,12 +159,12 @@ def save_movie(h5: h5py.File,
         ]):
             vmin = np.nanpercentile(im_array, 1)
             vmax = np.nanpercentile(im_array, 99)
-            if fname.endswith('diff.gif'):
+            if fname.startswith(f'{fname_prefix}diff_'):
                 cmap_str = 'RdBu_r'
             else:
                 cmap_str = 'viridis'
             save_array_to_movie(im_array,
                                 save_dir / fname,
-                                vmin=vmin,
-                                vmax=vmax,
+                                vmin=-max(abs(vmin), abs(vmax)),
+                                vmax=max(abs(vmin), abs(vmax)),
                                 cmap=cmap_str)

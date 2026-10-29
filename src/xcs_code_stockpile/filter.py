@@ -3,26 +3,21 @@ import numpy as np
 import pandas as pd
 
 
-def common_enough_off_type_filter(metadata):
+def common_enough_off_type_filter(metadata: pd.DataFrame) -> pd.Series:
     metadata = metadata.copy()
     vc = metadata['laser_off_type'].value_counts(normalize=True)
     typical_vc = np.mean(vc)
     valid_filter = metadata['laser_off_type'].map(vc > 0.1 * typical_vc)
-    
     filter = pd.Series(False, index=metadata.index)
     filter.loc[metadata.index] = valid_filter
 
     return filter
 
 
-def i0_min_max_filter(metadata: pd.DataFrame,
-                      i0_minimum_percentile: float,
+def i0_min_max_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
                       i0_maximum_percentile: float) -> pd.Series:
-    valid_input = (
-        metadata['xray_on'] &
-        (metadata['i0'] > 0.0)
-        & np.isfinite(metadata['i0'])
-    )
+    valid_input = (metadata['xray_on'] & (metadata['i0'] > 0.0)
+                   & np.isfinite(metadata['i0']))
     valid_metadata = metadata[valid_input]
     i0_minimum = np.percentile(valid_metadata['i0'], i0_minimum_percentile)
     i0_maximum = np.percentile(valid_metadata['i0'], i0_maximum_percentile)
@@ -36,9 +31,8 @@ def i0_min_max_filter(metadata: pd.DataFrame,
 
 
 def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
-                     i0_maximum_percentile: float, ratio_min_percentile: float,
-                     ratio_max_percentile: float) -> pd.Series:
-
+                    i0_maximum_percentile: float, ratio_min_percentile: float,
+                    ratio_max_percentile: float) -> pd.Series:
     """Select finite X-ray shots in configurable intensity ranges.
 
     A linear model of ROI intensity against ``i0`` is fitted to finite X-ray
@@ -58,10 +52,9 @@ def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
         off shots, zero or non-finite ``i0``, non-finite ROI intensity, and
         values outside the requested percentile ranges.
     """
-    valid_input = (metadata['xray_on'] &
-                   (metadata['i0'] != 0) &
-                   np.isfinite(metadata['i0']) &
-                   np.isfinite(metadata['intensity_in_roi']))
+    valid_input = (metadata['xray_on'] & (metadata['i0'] != 0)
+                   & np.isfinite(metadata['i0'])
+                   & np.isfinite(metadata['intensity_in_roi']))
     valid_metadata = metadata[valid_input]
     i0_minimum = np.percentile(valid_metadata['i0'], i0_minimum_percentile)
     i0_maximum = np.percentile(valid_metadata['i0'], i0_maximum_percentile)

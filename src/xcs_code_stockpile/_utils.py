@@ -1,10 +1,21 @@
 from functools import wraps
 from datetime import datetime
+from os import PathLike
+from typing import Optional, Union
 
+import h5py
 import numpy as np
 import matplotlib.pyplot as plt
+import imageio
 
 from .roi import _ROI
+from .datahandler import H5Dictionary
+
+
+def _round_bins(bins, interval):
+    return np.round(
+        np.array([round(b / interval) * interval
+                  for b in bins]).astype(np.float64), 8)
 
 
 def parsed_roi(f):
@@ -30,7 +41,10 @@ def parsed_roi(f):
 
 
 @parsed_roi
-def slow_mean(h5, h5dict, shots, roi=None):
+def slow_mean(h5: h5py.File,
+              h5dict: H5Dictionary,
+              shots: np.ndarray,
+              roi=None):
     stack = h5[h5dict.stack]
     shape = stack[0, *roi].shape
     out = np.zeros(shape)
@@ -42,7 +56,7 @@ def slow_mean(h5, h5dict, shots, roi=None):
 
 
 @parsed_roi
-def slow_sum(h5, h5dict, shots, roi=None):
+def slow_sum(h5: h5py.File, h5dict: H5Dictionary, shots: np.ndarray, roi=None):
     stack = h5[h5dict.stack]
     shape = h5[h5dict.stack][0, *roi].shape
     out = np.zeros(shape)
@@ -53,58 +67,69 @@ def slow_sum(h5, h5dict, shots, roi=None):
 
 
 @parsed_roi
-def slow_intensities(h5, h5dict, shots, roi=None):
+def slow_intensities(h5: h5py.File,
+                     h5dict: H5Dictionary,
+                     shots: np.ndarray,
+                     roi=None):
     stack = h5[h5dict.stack]
     out = np.zeros(len(shots))
     for i, shot_idx in enumerate(shots):
         out[i] = np.sum(stack[shot_idx, *roi])
     return out
 
+
 @np.vectorize
-def ts_to_s(ts):
+def ts_to_s(ts: Union[int, np.ndarray]):
     sec = ts >> 32 & 0xffffffff
     nsec = ts & 0xffffffff
     return datetime.fromtimestamp(sec + nsec * 1e-9).timestamp()
 
 
-def basic_off_type_encoder(laser_on):
-    laser_on = laser_on.astype(int)
+def _estimate_period(laser_on, max_period=500, min_score=0.5):
     n_shots = len(laser_on)
-    found_first_laser_on_shot = False
-    off_type = [np.nan for i in range(n_shots)]
+    max_period = min(max_period, n_shots // 2)
+    on_fraction = np.mean(laser_on) if n_shots else 0.
+    if max_period < 1 or on_fraction in (0., 1.):
+        return None
+    periods = np.arange(1, max_period + 1)
+    on_shots = np.flatnonzero(laser_on)
+    score = np.array([
+        np.mean(laser_on[on_shots[on_shots + p < n_shots] + p])
+        for p in periods
+    ])
+    score = (score - on_fraction) / (1 - on_fraction)
+    best = score.max()
+    if best < min_score:
+        return None
+    return int(periods[np.flatnonzero(score >= 0.6 * best)[0]])
+
+
+def basic_off_type_encoder(laser_on: np.ndarray,
+                           unknown_label: str = 'unknown_off',
+                           max_period: int = 500) -> list[str]:
+    laser_on = np.asarray(laser_on).astype(bool)
+    n_shots = len(laser_on)
+    off_type = [None] * n_shots
     for i in range(n_shots):
         if laser_on[i]:
-            found_first_laser_on_shot = True
             off_type[i] = 0
-        else:
-            if found_first_laser_on_shot:
-                off_type[i] = off_type[i - 1] + 1
-            else:
-                off_type[i] = np.nan
-    for i in range(n_shots):
-        if np.isnan(off_type[i]):
-            next_laser_on_position = 0
-            next_next_laser_on_position = 0
-            for j in range(n_shots):
-                next_laser_on_position += 1
-                next_next_laser_on_position += 1
-                if off_type[i + j] == 0:
-                    for k in range(n_shots):
-                        if k == 0:
-                            continue
-                        next_next_laser_on_position += 1
-                        if off_type[i + j + k] == 0:
-                            break
-                    break
-            off_type[i] = off_type[i + (next_next_laser_on_position -
-                                        next_laser_on_position)]
-    off_type_str = []
-    for ot in off_type:
-        if ot == 0:
-            off_type_str.append(f'{ot:03d}_on')
-        else:
-            off_type_str.append(f'{ot:03d}_off')
-    return off_type_str
+        elif i > 0 and off_type[i - 1] is not None:
+            off_type[i] = off_type[i - 1] + 1
+
+    period = _estimate_period(laser_on, max_period=max_period)
+    on_shots = np.flatnonzero(laser_on)
+    first_on = on_shots[0] if on_shots.size else n_shots
+    if period is not None:
+        for i in range(first_on - 1, -1, -1):
+            j = i + period
+            if j < n_shots and not laser_on[j] and off_type[j] is not None:
+                off_type[i] = off_type[j]
+
+    return [
+        unknown_label
+        if ot is None else f'{ot:03d}_on' if ot == 0 else f'{ot:03d}_off'
+        for ot in off_type
+    ]
 
 
 def save_array_to_movie(ims: np.ndarray,
@@ -112,15 +137,13 @@ def save_array_to_movie(ims: np.ndarray,
                         vmin: Optional[float] = None,
                         vmax: Optional[float] = None,
                         cmap: str = 'viridis',
-                        first_frame_repeats: int = 15):
-    import imageio
+                        first_frame_repeats: int = 15) -> np.ndarray:
     if vmin is None:
         vmin = np.nanmin(ims)
     if vmax is None:
         vmax = np.nanmax(ims)
     ims = np.clip(ims, vmin, vmax)
-    regulated_ims = ((ims - np.nanmin(ims)) /
-                     (np.nanmax(ims) - np.nanmin(ims)))
+    regulated_ims = (ims - vmin) / (vmax - vmin)
     cmap = plt.get_cmap(cmap)
     rgba_array = cmap(regulated_ims)
     rgb_array = rgba_array[..., :3]
@@ -134,5 +157,5 @@ def save_array_to_movie(ims: np.ndarray,
             repeated_ims.append(rgb_uint8[i, ...])
 
     if path is not None:
-        imageio.mimsave(path, repeated_ims, fps=30)
+        imageio.mimsave(path, repeated_ims, duration=1000 / 30)
     return regulated_ims
