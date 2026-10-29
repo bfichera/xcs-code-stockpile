@@ -7,7 +7,6 @@ repo_name: bfichera/xcs-code-stockpile
 nav:
   - Getting started: index.md
   - API reference:
-      - Overview: reference/index.md
       - Data loading: reference/datahandler.md
       - Metadata: reference/metadata.md
       - Filtering: reference/filter.md
