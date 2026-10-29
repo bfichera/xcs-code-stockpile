@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import pandas as pd
 
@@ -15,17 +15,17 @@ from ._utils import slow_mean, parsed_roi
 def fit_linear_i_vs_i0(
     metadata: pd.DataFrame,
     filter: Optional[Union[np.ndarray, pd.Series]] = None,
-) -> tuple[float]:
-    """Fit pump-off ROI intensity as a linear function of incident intensity.
+) -> tuple[float, float, float]:
+    """Fit ROI intensity as a linear function of ``i0``.
 
     Args:
-        metadata: Metadata containing ``i0``, and
-            ``intensity_in_roi``.
-        filter: Optional boolean array or Series selecting metadata rows before
-            pump-off shots are selected. `None` uses all rows.
+        metadata: Metadata containing ``i0`` and ``intensity_in_roi``.
+        filter: Optional boolean array or Series selecting metadata rows.
+            `None` uses all rows.
 
     Returns:
-        beta, intercept, R^2
+        A tuple ``(beta, intercept, r2)`` of the slope, intercept and R^2
+        of the fit.
     """
     if filter is not None:
         metadata = metadata[filter]
@@ -44,13 +44,15 @@ def plot_intensity_vs_i0(
     metadata: pd.DataFrame,
     filter: Optional[Union[np.ndarray, pd.Series]] = None,
 ) -> Figure:
-    """Plot pump-off ROI intensity and its linear fit against ``i0``.
+    """Plot ROI intensity against ``i0``, with a linear fit.
+
+    The fit uses only shots passing `filter`. All shots are plotted, and
+    those that fail the filter are outlined in red.
 
     Args:
-        metadata: Metadata accepted by `intensity_vs_i0`, with a run number in
-            ``metadata.attrs["run"]``.
-        filter: Optional boolean array or Series selecting metadata rows before
-            pump-off shots are selected. `None` uses all rows.
+        metadata: Metadata containing ``i0`` and ``intensity_in_roi``.
+        filter: Optional boolean array or Series selecting shots for the fit.
+            `None` uses all rows.
 
     Returns:
         A new Matplotlib Figure.
@@ -143,14 +145,15 @@ def plot_intensity_vs_time(
 
 
 def plot_detector_image(h5: h5py.File, h5dict: H5Dictionary, samplerate: int,
-                        **kws) -> Figure:
-    """Plot the full detector.
+                        **kws: Any) -> Figure:
+    """Plot the mean full detector image.
 
     Args:
-        h5: h5py.File
-        h5dict: H5Dictionary
-        samplerate: int
-        kws: keywords to pass to plt.imshow
+        h5: Open HDF5 file containing the detector stack.
+        h5dict: Mapping whose ``stack`` field identifies the detector dataset.
+        samplerate: Average every Nth shot.
+        **kws: Passed to `matplotlib.pyplot.imshow`. ``vmin`` and ``vmax``
+            default to the 1st and 99th percentiles.
 
     Returns:
         A new Matplotlib Figure.
@@ -172,16 +175,21 @@ def plot_roi_image(
     h5dict: H5Dictionary,
     metadata: pd.DataFrame,
     filter: Optional[Union[np.ndarray, pd.Series]] = None,
-    roi=None,
-    **kws,
+    roi: Optional[Union[list[int], tuple[slice, slice]]] = None,
+    **kws: Any,
 ) -> Figure:
-    """Plot an roi, possibly filtered.
+    """Plot the mean image of an ROI over the selected shots.
 
     Args:
-        h5: h5py.File
-        h5dict: H5Dictionary
-        samplerate: int
-        kws: keywords to pass to plt.imshow
+        h5: Open HDF5 file containing the detector stack.
+        h5dict: Mapping whose ``stack`` field identifies the detector dataset.
+        metadata: Per-shot metadata containing ``shot_idx``.
+        filter: Optional boolean array or Series selecting metadata rows.
+            `None` uses all rows.
+        roi: Detector region as ``[x0, x1, y0, y1]`` or a
+            ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
+        **kws: Passed to `matplotlib.pyplot.imshow`. ``vmin`` and ``vmax``
+            default to the 1st and 99th percentiles.
 
     Returns:
         A new Matplotlib Figure.

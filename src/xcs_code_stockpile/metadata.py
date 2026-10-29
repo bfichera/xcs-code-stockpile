@@ -1,7 +1,7 @@
 from ._utils import parsed_roi
 from .datahandler import H5Dictionary
 from ._log import logger
-from typing import Optional, Union, Callable
+from typing import Any, Optional, Union, Callable
 
 import h5py
 import numpy as np
@@ -17,29 +17,35 @@ def create_metadata(h5: h5py.File,
                     nan_policy: str = 'raise',
                     calc_intensity: bool = True,
                     laser_off_type_func: Optional[Callable] = None,
-                    *args,
-                    **kwargs) -> pd.DataFrame:
+                    *args: Any,
+                    **kwargs: Any) -> pd.DataFrame:
     """Build per-shot metadata from a smalldata HDF5 file.
 
     Args:
         h5: Open HDF5 file containing every dataset mapped by `h5dict`.
         run: Run number stored in the returned DataFrame's ``attrs``.
-        h5dict: Mapping from logical field names to HDF5 dataset paths.
+        h5dict: Mapping from field names to HDF5 datasets.
         roi: Detector region as ``[x0, x1, y0, y1]`` or a
             ``(row_slice, column_slice)`` tuple. `None` selects the full stored
             frame.
         nan_policy: ``"raise"`` rejects NaNs in per-shot ROI sums;
             ``"ignore"`` computes them with `numpy.nansum`.
+        calc_intensity: If False, skip the ROI sum and fill
+            ``intensity_in_roi`` with NaN.
+        laser_off_type_func: Called as ``laser_off_type_func(h5, *args,
+            **kwargs)``; must return one label per shot. If `None`, shots
+            are labeled ``"on"`` or ``"off"`` from ``laser_on``.
+        *args: Passed to `laser_off_type_func`.
+        **kwargs: Passed to `laser_off_type_func`.
 
     Returns:
         A DataFrame with ``intensity_in_roi``, ``shot_idx``, ``event_time``,
-        ``laser_on``, ``xray_on``, ``i0``, and ``delay`` columns. The run
-        number is available as ``result.attrs["run"]``.
+        ``laser_on``, ``xray_on``, ``i0``, ``delay`` and ``laser_off_type``
+        columns, plus any extra `h5dict` fields. The run number is available as ``result.attrs["run"]``.
 
     Raises:
         ValueError: If `nan_policy` is invalid or detector data contains NaNs
             while the policy is ``"raise"``.
-        KeyError: If a mapped HDF5 dataset is missing.
     """
 
     if nan_policy not in ['raise', 'ignore']:

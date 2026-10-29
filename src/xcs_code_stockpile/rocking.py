@@ -17,7 +17,7 @@ def calc_rocking_stats(
     h5dict: H5Dictionary,
     scan_variable: str,
     metadata: pd.DataFrame,
-    filter: Union[np.ndarray, None],
+    filter: Union[np.ndarray, pd.Series, None],
     roi: Optional[Union[list[int], tuple[slice,
                                          slice]]] = None) -> pd.DataFrame:
     """Calculate integrated-intensity statistics for a rocking scan.
@@ -62,10 +62,24 @@ def save_rocking_movie(
         h5dict: H5Dictionary,
         scan_variable: str,
         metadata: pd.DataFrame,
-        filter: Union[np.ndarray, None],
+        filter: Union[np.ndarray, pd.Series, None],
         save_dir: PathLike,
         fname: str = 'rocking.gif',
         roi: Optional[Union[list[int], tuple[slice, slice]]] = None) -> None:
+    """Save a movie of the mean detector image at each scan value.
+
+    Args:
+        h5: Open HDF5 file containing the detector stack.
+        h5dict: Mapping whose ``stack`` field identifies the detector dataset.
+        scan_variable: Metadata column; one frame per unique value.
+        metadata: Per-shot metadata with ``shot_idx``, ``i0`` and the scan
+            variable.
+        filter: Boolean array or Series selecting metadata rows.
+        save_dir: Output directory. Created if missing.
+        fname: Output file name, saved in `save_dir`.
+        roi: Detector region as ``[x0, x1, y0, y1]`` or a
+            ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
+    """
 
     if filter is not None:
         metadata = metadata[filter].copy()

@@ -53,7 +53,7 @@ def calc_static_correlation(
     h5: h5py.File,
     h5dict: H5Dictionary,
     metadata: pd.DataFrame,
-    filter: np.ndarray,
+    filter: Union[np.ndarray, pd.Series],
     roi: Optional[Union[list[int], tuple[slice, slice]]] = None,
     denominator_type: str = 'mean',
     ret_twotime: bool = False
@@ -69,7 +69,8 @@ def calc_static_correlation(
             ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
         denominator_type: ``"mean"`` computes normalized intensity
             correlation minus one; ``"std"`` computes Pearson correlation
-            across pixels.
+            across pixels. ``"nanmean"`` and ``"nanstd"`` are the same but
+            ignore NaN pixels.
         ret_twotime: Return the two-time correlation matrix as well as its
             diagonal averages.
 

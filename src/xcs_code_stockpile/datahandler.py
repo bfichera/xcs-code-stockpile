@@ -14,18 +14,27 @@ except ImportError:
 
 
 class SmartH5(h5py.File):
+    """An `h5py.File` that also accepts a function as a key.
 
-    def __init__(self, *args, **kwargs):
+    ``h5[func]`` returns ``func(h5)``. This is what lets `H5Dictionary`
+    fields be functions.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         return super().__init__(*args, **kwargs)
 
-    def __getitem__(self, key: Union[str, Callable]):
+    def __getitem__(self, key: Union[str, Callable]) -> Any:
         if hasattr(key, '__call__'):
             return key(self)
         return super().__getitem__(key)
 
 
 class H5Dictionary(BaseModel):
-    """Map logical analysis fields to datasets in a smalldata HDF5 file.
+    """Map analysis fields to datasets in a smalldata HDF5 file.
+
+    Each field is a dataset path, or a function that takes the open file and
+    returns an array (the file must then be a `SmartH5`). Extra fields are
+    allowed and become columns in the metadata.
 
     Attributes:
         event_time: Path to the one-dimensional event-time dataset.

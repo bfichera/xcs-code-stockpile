@@ -260,7 +260,7 @@ def differential_correlation(reversibility_type: str, *args: Any,
         **kwargs: Forwarded analysis options, including ``roi`` and
             ``denominator_type``. ``roi`` accepts ``[x0, x1, y0, y1]`` or a
             ``(row_slice, column_slice)`` tuple. ``denominator_type`` accepts
-            ``"mean"`` or ``"std"``.
+            ``"mean"``, ``"std"``, ``"nanmean"`` or ``"nanstd"``.
 
     Returns:
         A Series containing mean correlations, indexed by the left edge of
@@ -270,7 +270,8 @@ def differential_correlation(reversibility_type: str, *args: Any,
 
     Raises:
         NotImplementedError: If a reversibility or denominator type is not
-            supported.
+            supported, or if the filtered metadata has more than two
+            ``laser_off_type`` values.
     """
     _diffcorr_func = _correlation_dispatcher(reversibility_type)
     return _diffcorr_func(*args, **kwargs)
@@ -355,29 +356,20 @@ def _strong_reversibility_difftwotime(
 
 def differential_twotime(reversibility_type: str, *args: Any,
                          **kwargs: Any) -> np.ndarray:
-    """Calculate pump-on/pump-off correlation grouped by delay.
+    """Calculate the two-time version of `differential_correlation`.
 
     Args:
-        reversibility_type: Correlation strategy: ``"strong"``, ``"weak"``,
-            or ``"none"``.
-        *args: Positional arguments forwarded to the selected strategy. All
-            strategies accept ``h5, h5dict, metadata, filter,
-            delay_bin_interval``. Strong and weak strategies additionally
-            require ``labtime_bin_interval``.
-        **kwargs: Forwarded analysis options, including ``roi`` and
-            ``denominator_type``. ``roi`` accepts ``[x0, x1, y0, y1]`` or a
-            ``(row_slice, column_slice)`` tuple. ``denominator_type`` accepts
-            ``"mean"`` or ``"std"``.
+        reversibility_type: Only ``"strong"`` is implemented.
+        *args: Passed to the strategy, as in `differential_correlation`.
+        **kwargs: Passed to the strategy, as in `differential_correlation`.
 
     Returns:
-        A Series containing mean correlations, indexed by the left edge of
-        each delay bin. Strong and weak strategies compare within lab-time
-        bins; the no-reversibility strategy compares each pump-on shot with
-        its most recent preceding pump-off shot.
+        A symmetric array with one row and column per delay bin. Entries are
+        NaN on the diagonal and where two delay bins never share a lab-time
+        bin.
 
     Raises:
-        NotImplementedError: If a reversibility or denominator type is not
-            supported.
+        NotImplementedError: If `reversibility_type` is not supported.
     """
     _difftwotime_func = _twotime_dispatcher(reversibility_type)
     return _difftwotime_func(*args, **kwargs)

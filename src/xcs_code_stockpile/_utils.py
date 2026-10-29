@@ -1,12 +1,13 @@
 from functools import wraps
 from datetime import datetime
 from os import PathLike
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import imageio
+from numpy.typing import ArrayLike
 
 from .roi import _ROI
 from .datahandler import H5Dictionary
@@ -18,7 +19,7 @@ def _round_bins(bins, interval):
                   for b in bins]).astype(np.float64), 8)
 
 
-def parsed_roi(f):
+def parsed_roi(f: Callable) -> Callable:
     roi_position = f.__code__.co_varnames.index('roi')
 
     @wraps(f)
@@ -44,7 +45,8 @@ def parsed_roi(f):
 def slow_mean(h5: h5py.File,
               h5dict: H5Dictionary,
               shots: np.ndarray,
-              roi=None):
+              roi: Optional[Union[list[int], tuple[slice, slice]]] = None
+              ) -> np.ndarray:
     stack = h5[h5dict.stack]
     shape = stack[0, *roi].shape
     out = np.zeros(shape)
@@ -56,7 +58,11 @@ def slow_mean(h5: h5py.File,
 
 
 @parsed_roi
-def slow_sum(h5: h5py.File, h5dict: H5Dictionary, shots: np.ndarray, roi=None):
+def slow_sum(h5: h5py.File,
+             h5dict: H5Dictionary,
+             shots: np.ndarray,
+             roi: Optional[Union[list[int], tuple[slice, slice]]] = None
+             ) -> np.ndarray:
     stack = h5[h5dict.stack]
     shape = h5[h5dict.stack][0, *roi].shape
     out = np.zeros(shape)
@@ -70,7 +76,8 @@ def slow_sum(h5: h5py.File, h5dict: H5Dictionary, shots: np.ndarray, roi=None):
 def slow_intensities(h5: h5py.File,
                      h5dict: H5Dictionary,
                      shots: np.ndarray,
-                     roi=None):
+                     roi: Optional[Union[list[int], tuple[slice, slice]]] = None
+                     ) -> np.ndarray:
     stack = h5[h5dict.stack]
     out = np.zeros(len(shots))
     for i, shot_idx in enumerate(shots):
@@ -79,7 +86,7 @@ def slow_intensities(h5: h5py.File,
 
 
 @np.vectorize
-def ts_to_s(ts: Union[int, np.ndarray]):
+def ts_to_s(ts: Union[int, np.ndarray]) -> Union[float, np.ndarray]:
     sec = ts >> 32 & 0xffffffff
     nsec = ts & 0xffffffff
     return datetime.fromtimestamp(sec + nsec * 1e-9).timestamp()
@@ -104,9 +111,24 @@ def _estimate_period(laser_on, max_period=500, min_score=0.5):
     return int(periods[np.flatnonzero(score >= 0.6 * best)[0]])
 
 
-def basic_off_type_encoder(laser_on: np.ndarray,
+def basic_off_type_encoder(laser_on: ArrayLike,
                            unknown_label: str = 'unknown_off',
                            max_period: int = 500) -> list[str]:
+    """Label each shot by its position in the laser on/off cycle.
+
+    Pump shots are labeled ``"000_on"``. Later shots are numbered by the
+    shots since the last pump shot, e.g. ``"002_off"``. Off shots before the
+    first pump shot are numbered by assuming the cycle repeats with its
+    detected period. If no period is found, they get `unknown_label`.
+
+    Args:
+        laser_on: Pump status of each shot.
+        unknown_label: Label for shots that can't be numbered.
+        max_period: Longest cycle length to look for, in shots.
+
+    Returns:
+        One label per shot, for the ``laser_off_type`` column.
+    """
     laser_on = np.asarray(laser_on).astype(bool)
     n_shots = len(laser_on)
     off_type = [None] * n_shots

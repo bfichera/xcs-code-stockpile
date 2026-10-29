@@ -16,6 +16,21 @@ def common_enough_off_type_filter(metadata: pd.DataFrame) -> pd.Series:
 
 def i0_min_max_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
                       i0_maximum_percentile: float) -> pd.Series:
+    """Select X-ray shots with ``i0`` inside a percentile range.
+
+    Shots with zero, negative or non-finite ``i0`` are excluded before the
+    percentiles are computed. Shots with a rare ``laser_off_type`` are also
+    dropped (see `common_enough_off_type_filter`).
+
+    Args:
+        metadata: Per-shot metadata with ``xray_on``, ``i0`` and
+            ``laser_off_type`` columns.
+        i0_minimum_percentile: Lower percentile for accepted ``i0`` values.
+        i0_maximum_percentile: Upper percentile for accepted ``i0`` values.
+
+    Returns:
+        A boolean Series aligned with `metadata`.
+    """
     valid_input = (metadata['xray_on'] & (metadata['i0'] > 0.0)
                    & np.isfinite(metadata['i0']))
     valid_metadata = metadata[valid_input]
@@ -37,11 +52,12 @@ def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
 
     A linear model of ROI intensity against ``i0`` is fitted to finite X-ray
     shots. Selection then applies inclusive percentile limits to ``i0`` and to
-    the residual divided by ``i0``.
+    the residual divided by ``i0``. Shots with a rare ``laser_off_type`` are
+    also dropped (see `common_enough_off_type_filter`).
 
     Args:
-        metadata: Per-shot metadata containing ``xray_on``, ``i0``, and
-            ``intensity_in_roi`` columns.
+        metadata: Per-shot metadata containing ``xray_on``, ``i0``,
+            ``intensity_in_roi`` and ``laser_off_type`` columns.
         i0_minimum_percentile: Lower percentile for accepted ``i0`` values.
         i0_maximum_percentile: Upper percentile for accepted ``i0`` values.
         ratio_min_percentile: Lower percentile for scaled fit residuals.
@@ -78,4 +94,5 @@ def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
 
 
 def no_filter(metadata: pd.DataFrame) -> pd.Series:
+    """Select every shot."""
     return pd.Series(True, index=metadata.index)

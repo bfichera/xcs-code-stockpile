@@ -23,7 +23,7 @@ def _fwhm_1d(a, center):
 def calc_trxrd_stats(h5: h5py.File,
                      h5dict: H5Dictionary,
                      metadata: pd.DataFrame,
-                     filter: Union[np.ndarray, None],
+                     filter: Union[np.ndarray, pd.Series, None],
                      bin_interval: float,
                      roi: Optional[Union[list[int], tuple[slice,
                                                           slice]]] = None,
@@ -40,12 +40,16 @@ def calc_trxrd_stats(h5: h5py.File,
             the metadata ``delay`` column.
         roi: Detector region as ``[x0, x1, y0, y1]`` or a
             ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
+        compute_image_stats: If False, skip the center of mass and FWHM
+            (those columns are NaN).
 
     Returns:
-        A DataFrame indexed by delay-bin left edge. Columns are
-        ``intensity_mean``, ``intensity_stderr``, ``com_i``, ``com_j``,
-        ``fwhm_i``, ``fwhm_j``, and ``n_shots``. Intensities are normalized by
-        mean ``i0``. Centers and moment-derived widths are ROI-relative pixels.
+        A DataFrame indexed by delay-bin left edge. Each column is prefixed
+        by the ``laser_off_type`` it describes, e.g. ``on_intensity_mean``.
+        The columns are ``intensity_mean``, ``intensity_stderr``, ``n_shots``,
+        ``com_i``, ``com_j``, ``fwhm_i`` and ``fwhm_j``. Intensities are
+        normalized by mean ``i0``. Centers and widths are in ROI-relative
+        pixels.
     """
     # First we apply the filter
 
@@ -98,13 +102,34 @@ def calc_trxrd_stats(h5: h5py.File,
 def save_movie(h5: h5py.File,
                h5dict: H5Dictionary,
                metadata: pd.DataFrame,
-               filter: np.ndarray,
+               filter: Union[np.ndarray, pd.Series],
                bin_interval: float,
                save_dir: PathLike,
                fname_prefix: str = '',
                roi: Optional[Union[list[int], tuple[slice, slice]]] = None,
                on_types: list[Hashable] = ['on'],
                off_types: list[Hashable] = ['off']) -> None:
+    """Save delay-binned detector movies as GIFs.
+
+    For each pair in `on_types` x `off_types`, writes three files to
+    `save_dir`: ``on_{on}.gif``, ``off_{off}.gif`` and
+    ``diff_{on}_{off}.gif`` (on / off - 1). Frames are mean images,
+    normalized by ``i0``, one per delay bin.
+
+    Args:
+        h5: Open HDF5 file containing the detector stack.
+        h5dict: Mapping whose ``stack`` field identifies the detector dataset.
+        metadata: Per-shot metadata with ``shot_idx``, ``delay``, ``i0`` and
+            ``laser_off_type`` columns.
+        filter: Boolean array or Series selecting metadata rows.
+        bin_interval: Delay bin width, in the units of ``delay``.
+        save_dir: Output directory. Created if missing.
+        fname_prefix: Prepended to every file name.
+        roi: Detector region as ``[x0, x1, y0, y1]`` or a
+            ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
+        on_types: ``laser_off_type`` values to use as the "on" images.
+        off_types: ``laser_off_type`` values to use as the "off" images.
+    """
     metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
