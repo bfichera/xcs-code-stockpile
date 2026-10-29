@@ -10,7 +10,7 @@ import pandas as pd
 from scipy.ndimage import center_of_mass
 
 from .datahandler import H5Dictionary
-from ._utils import parsed_roi, save_array_to_movie, _round_bins
+from ._utils import parsed_roi, save_array_to_movie, _bin_edges, _bin_labels
 
 
 def _fwhm_1d(a, center):
@@ -57,12 +57,11 @@ def calc_trxrd_stats(h5: h5py.File,
         metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
-    bins = _round_bins(
-        np.arange(delay.min(),
-                  delay.max() + bin_interval, bin_interval), bin_interval)
-    if bins[-1] <= delay.max():
-        bins = np.append(bins, bins[-1] + bin_interval)
-    delay_bins = pd.cut(metadata['delay'], bins, right=False, labels=bins[:-1])
+    bins = _bin_edges(delay, bin_interval)
+    delay_bins = pd.cut(metadata['delay'],
+                        bins,
+                        right=False,
+                        labels=_bin_labels(bins))
     metadata['delay_bin'] = delay_bins
 
     stack = h5[h5dict.stack][..., *roi]
@@ -135,12 +134,11 @@ def save_movie(h5: h5py.File,
     metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
-    bins = _round_bins(
-        np.arange(delay.min(),
-                  delay.max() + bin_interval, bin_interval), bin_interval)
-    if bins[-1] <= delay.max():
-        bins = np.append(bins, bins[-1] + bin_interval)
-    delay_bins = pd.cut(metadata['delay'], bins, right=False, labels=bins[:-1])
+    bins = _bin_edges(delay, bin_interval)
+    delay_bins = pd.cut(metadata['delay'],
+                        bins,
+                        right=False,
+                        labels=_bin_labels(bins))
     metadata['delay_bin'] = delay_bins
 
     for on_type, off_type in product(on_types, off_types):
@@ -190,10 +188,12 @@ def save_movie(h5: h5py.File,
             vmax = np.nanpercentile(im_array, 99)
             if fname.startswith(f'{fname_prefix}diff_'):
                 cmap_str = 'RdBu_r'
+                vmax = max(abs(vmin), abs(vmax))
+                vmin = -vmax
             else:
                 cmap_str = 'viridis'
             save_array_to_movie(im_array,
                                 save_dir / fname,
-                                vmin=-max(abs(vmin), abs(vmax)),
-                                vmax=max(abs(vmin), abs(vmax)),
+                                vmin=vmin,
+                                vmax=vmax,
                                 cmap=cmap_str)

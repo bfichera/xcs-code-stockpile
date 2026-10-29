@@ -13,10 +13,16 @@ from .roi import _ROI
 from .datahandler import H5Dictionary
 
 
-def _round_bins(bins, interval):
-    return np.round(
-        np.array([round(b / interval) * interval
-                  for b in bins]).astype(np.float64), 8)
+def _bin_edges(values: np.ndarray, interval: float) -> np.ndarray:
+    start = np.min(values)
+    n_edges = int(np.floor((np.max(values) - start) / interval)) + 2
+    return start + np.arange(n_edges) * interval
+
+
+def _bin_labels(edges: np.ndarray) -> np.ndarray:
+    interval = edges[1] - edges[0]
+    decimals = max(0, int(np.ceil(-np.log10(interval))) + 6)
+    return np.round(edges[:-1], decimals)
 
 
 def parsed_roi(f: Callable) -> Callable:

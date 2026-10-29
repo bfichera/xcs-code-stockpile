@@ -585,10 +585,12 @@ class SaveMovieTestCase(OffTypeMixin, SyntheticRunTestCase):
         for call, frames in zip(calls, expected):
             np.testing.assert_allclose(call['ims'],
                                        frames[:, 30:70, 40:60])
-            self.assertAlmostEqual(call['vmin'],
-                                   np.nanpercentile(call['ims'], 1))
-            self.assertAlmostEqual(call['vmax'],
-                                   np.nanpercentile(call['ims'], 99))
+            lo = np.nanpercentile(call['ims'], 1)
+            hi = np.nanpercentile(call['ims'], 99)
+            if call['path'].name.startswith('diff_'):
+                lo, hi = -max(abs(lo), abs(hi)), max(abs(lo), abs(hi))
+            self.assertAlmostEqual(call['vmin'], lo)
+            self.assertAlmostEqual(call['vmax'], hi)
 
     def test_save_movie_diff_uses_diverging_colormap(self):
         calls = self.capture(trxrd, xcs.save_movie, self.h5, self.h5dict,

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from ._utils import parsed_roi, _round_bins
+from ._utils import parsed_roi, _bin_edges, _bin_labels
 from .datahandler import H5Dictionary
 
 
@@ -23,15 +23,6 @@ def _validate_metadata(metadata):
         raise NotImplementedError(
             'Differential correlation is only implemented for two off types'
             ' (laser on, and laser off)')
-
-
-def _bin_edges(values: np.ndarray, interval: float):
-    bins = _round_bins(
-        np.arange(values.min(),
-                  values.max() + interval, interval), interval)
-    if bins[-1] <= values.max():
-        bins = np.append(bins, bins[-1] + interval)
-    return bins
 
 
 def _correlation_of_two_images(im1: np.ndarray,
@@ -75,7 +66,7 @@ def _strong_reversibility_diffcorr(h5: h5py.File,
     delay_bins = pd.cut(metadata['delay'],
                         _bins,
                         right=False,
-                        labels=_bins[:-1])
+                        labels=_bin_labels(_bins))
     metadata['delay_bin'] = delay_bins
 
     labtime = metadata['event_time'].to_numpy()
@@ -83,7 +74,7 @@ def _strong_reversibility_diffcorr(h5: h5py.File,
     labtime_bins = pd.cut(metadata['event_time'],
                           _bins,
                           right=False,
-                          labels=_bins[:-1])
+                          labels=_bin_labels(_bins))
     metadata['labtime_bin'] = labtime_bins
     metadata = metadata.groupby('labtime_bin').filter(
         lambda group: group['laser_on'].nunique() == 2)
@@ -137,7 +128,7 @@ def _weak_reversibility_diffcorr(h5: h5py.File,
     delay_bins = pd.cut(metadata['delay'],
                         _bins,
                         right=False,
-                        labels=_bins[:-1])
+                        labels=_bin_labels(_bins))
     metadata['delay_bin'] = delay_bins
 
     labtime = metadata['event_time'].to_numpy()
@@ -145,7 +136,7 @@ def _weak_reversibility_diffcorr(h5: h5py.File,
     labtime_bins = pd.cut(metadata['event_time'],
                           _bins,
                           right=False,
-                          labels=_bins[:-1])
+                          labels=_bin_labels(_bins))
     metadata['labtime_bin'] = labtime_bins
     metadata = metadata.groupby('labtime_bin').filter(
         lambda group: group['laser_on'].nunique() == 2)
@@ -196,7 +187,7 @@ def _none_reversibility_diffcorr(h5: h5py.File,
     delay_bins = pd.cut(metadata['delay'],
                         _bins,
                         right=False,
-                        labels=_bins[:-1])
+                        labels=_bin_labels(_bins))
     metadata['delay_bin'] = delay_bins
 
     stack = h5[h5dict.stack][..., *roi]
@@ -297,7 +288,7 @@ def _strong_reversibility_difftwotime(
     delay_bins = pd.cut(metadata['delay'],
                         _bins,
                         right=False,
-                        labels=_bins[:-1])
+                        labels=_bin_labels(_bins))
     metadata['delay_bin'] = delay_bins
 
     labtime = metadata['event_time'].to_numpy()
@@ -305,7 +296,7 @@ def _strong_reversibility_difftwotime(
     labtime_bins = pd.cut(metadata['event_time'],
                           _bins,
                           right=False,
-                          labels=_bins[:-1])
+                          labels=_bin_labels(_bins))
     metadata['labtime_bin'] = labtime_bins
     metadata = metadata.groupby('labtime_bin').filter(
         lambda group: group['laser_on'].nunique() == 2)

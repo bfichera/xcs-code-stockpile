@@ -223,10 +223,10 @@ class AnalysisTestCase(SyntheticRunTestCase):
                 com_j = np.sum(pixels * cols) / cols.sum()
                 fwhm_i = np.sqrt(
                     np.sum(rows * (pixels - com_i)**2) /
-                    rows.sum()) * 2.335
+                    rows.sum()) * 2.355
                 fwhm_j = np.sqrt(
                     np.sum(cols * (pixels - com_j)**2) /
-                    cols.sum()) * 2.335
+                    cols.sum()) * 2.355
                 self.assertAlmostEqual(actual[prefix + 'com_i'], com_i)
                 self.assertAlmostEqual(actual[prefix + 'com_j'], com_j)
                 self.assertAlmostEqual(actual[prefix + 'fwhm_i'], fwhm_i)
