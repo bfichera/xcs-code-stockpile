@@ -20,6 +20,10 @@ pip install git+https://github.com/bfichera/xcs-code-stockpile.git
 -   `scipy`
 -   `tqdm`
 
+## Examples
+
+Check out the [examples](examples/) folder to see some typical use cases.
+
 ## Usage
 
 ### H5Dicts

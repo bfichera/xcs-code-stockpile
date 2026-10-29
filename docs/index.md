@@ -27,6 +27,12 @@ source /sdf/data/lcls/ds/xcs/xcs101927227/results/bfichera/bryans-psconda.sh
 -   `scipy`
 -   `tqdm`
 
+## Examples
+
+Check out the
+[examples](https://github.com/bfichera/xcs-code-stockpile/tree/main/examples)
+folder on github to see some typical use cases.
+
 ## Usage
 
 ### H5Dicts
