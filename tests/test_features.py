@@ -616,9 +616,12 @@ class TrxrdImsTestCase(OffTypeMixin, SyntheticRunTestCase):
         self.assertEqual(len(reference), 3)
 
     def test_requires_exactly_two_off_types(self):
+        metadata = self.metadata.copy()
+        metadata['laser_off_type'] = np.where(
+            metadata['laser_on'], 'on',
+            np.where(metadata['shot_idx'] % 2 == 0, 'off', 'other_off'))
         with self.assertRaises(NotImplementedError):
-            xcs.trxrd_ims(self.h5, self.h5dict, self.encoded_metadata(),
-                          None, 10)
+            xcs.trxrd_ims(self.h5, self.h5dict, metadata, None, 10)
         only_on = self.metadata['laser_on']
         with self.assertRaises(NotImplementedError):
             xcs.trxrd_ims(self.h5, self.h5dict, self.metadata, only_on, 10)
