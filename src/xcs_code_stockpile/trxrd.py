@@ -13,6 +13,12 @@ from .datahandler import H5Dictionary
 from ._utils import parsed_roi, save_array_to_movie, _bin_edges, _bin_labels
 
 
+def _ensure_two_off_types(metadata):
+    if metadata['laser_off_type'].nunique() > 2:
+        raise NotImplementedError('Only implemented for two off types'
+                                  ' (laser on, and laser off)')
+
+
 def _fwhm_1d(a, center):
     x = np.arange(a.shape[0]) - center
     sigma = np.sqrt(np.sum(a * x**2) / np.sum(a))
@@ -97,6 +103,85 @@ def calc_trxrd_stats(h5: h5py.File,
         return pd.Series(out)
 
     return metadata.groupby('delay_bin').apply(func)
+
+
+@parsed_roi
+def trxrd_ims(
+    h5: h5py.File,
+    h5dict: H5Dictionary,
+    metadata: pd.DataFrame,
+    filter: Union[np.ndarray, pd.Series],
+    bin_interval: float,
+    roi: Optional[Union[list[int], tuple[slice, slice]]] = None
+) -> tuple[np.ndarray]:
+    """Output an n_frames x n_i x n_j array of images.
+
+    Frames are mean images, normalized by ``i0``, one per delay bin.
+
+    Args:
+        h5: Open HDF5 file containing the detector stack.
+        h5dict: Mapping whose ``stack`` field identifies the detector dataset.
+        metadata: Per-shot metadata with ``shot_idx``, ``delay``, ``i0`` and
+            ``laser_off_type`` columns.
+        filter: Boolean array or Series selecting metadata rows.
+        bin_interval: Delay bin width, in the units of ``delay``.
+        roi: Detector region as ``[x0, x1, y0, y1]`` or a
+            ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
+
+    Returns:
+        A tuple containing (1) delays, (2) the on images, and (3) the off
+        images; i.e. `delays, on_ims, off_ims = trxrd_ims(...)`
+    """
+    # TODO
+    # Really this can be generalized to more than two off types but I don't
+    # have time right now
+    on_types = ['on']
+    off_types = ['off']
+    metadata = metadata[filter].copy()
+    _ensure_two_off_types(metadata)
+    # Then we bin the data
+    delay = metadata['delay'].to_numpy()
+    bins = _bin_edges(delay, bin_interval)
+    delay_bins = pd.cut(metadata['delay'],
+                        bins,
+                        right=False,
+                        labels=_bin_labels(bins))
+    metadata['delay_bin'] = delay_bins
+
+    for on_type, off_type in product(on_types, off_types):
+        stack = h5[h5dict.stack][..., *roi]
+        delays = []
+        on_ims = []
+        off_ims = []
+        diff_ims = []
+        for delay_bin, group in metadata.groupby('delay_bin'):
+            on_shots = group[group['laser_off_type'] ==
+                             on_type]['shot_idx'].to_numpy()
+            off_shots = group[group['laser_off_type'] ==
+                              off_type]['shot_idx'].to_numpy()
+            on_substack = stack[on_shots, ...]
+            off_substack = stack[off_shots, ...]
+            on_mean_i0 = np.mean(group.loc[group['laser_off_type'] == on_type,
+                                           'i0'])
+            off_mean_i0 = np.mean(
+                group.loc[group['laser_off_type'] == off_type, 'i0'])
+            mean_on_im = np.mean(on_substack, axis=0)
+            mean_off_im = np.mean(off_substack, axis=0)
+            mean_normalized_on_im = mean_on_im / on_mean_i0
+            mean_normalized_off_im = mean_off_im / off_mean_i0
+
+            delays.append(delay_bin)
+            on_ims.append(mean_normalized_on_im)
+            off_ims.append(mean_normalized_off_im)
+            diff_ims.append(mean_normalized_on_im / mean_normalized_off_im -
+                            1.0)
+
+        delays = np.array(delays)
+        on_ims = np.array(on_ims)
+        off_ims = np.array(off_ims)
+        diff_ims = np.array(diff_ims)
+
+    return delays, on_ims, off_ims
 
 
 @parsed_roi

@@ -48,11 +48,12 @@ def parsed_roi(f: Callable) -> Callable:
 
 
 @parsed_roi
-def slow_mean(h5: h5py.File,
-              h5dict: H5Dictionary,
-              shots: np.ndarray,
-              roi: Optional[Union[list[int], tuple[slice, slice]]] = None
-              ) -> np.ndarray:
+def slow_mean(
+        h5: h5py.File,
+        h5dict: H5Dictionary,
+        shots: np.ndarray,
+        roi: Optional[Union[list[int], tuple[slice,
+                                             slice]]] = None) -> np.ndarray:
     stack = h5[h5dict.stack]
     shape = stack[0, *roi].shape
     out = np.zeros(shape)
@@ -64,11 +65,12 @@ def slow_mean(h5: h5py.File,
 
 
 @parsed_roi
-def slow_sum(h5: h5py.File,
-             h5dict: H5Dictionary,
-             shots: np.ndarray,
-             roi: Optional[Union[list[int], tuple[slice, slice]]] = None
-             ) -> np.ndarray:
+def slow_sum(
+        h5: h5py.File,
+        h5dict: H5Dictionary,
+        shots: np.ndarray,
+        roi: Optional[Union[list[int], tuple[slice,
+                                             slice]]] = None) -> np.ndarray:
     stack = h5[h5dict.stack]
     shape = h5[h5dict.stack][0, *roi].shape
     out = np.zeros(shape)
@@ -79,11 +81,12 @@ def slow_sum(h5: h5py.File,
 
 
 @parsed_roi
-def slow_intensities(h5: h5py.File,
-                     h5dict: H5Dictionary,
-                     shots: np.ndarray,
-                     roi: Optional[Union[list[int], tuple[slice, slice]]] = None
-                     ) -> np.ndarray:
+def slow_intensities(
+        h5: h5py.File,
+        h5dict: H5Dictionary,
+        shots: np.ndarray,
+        roi: Optional[Union[list[int], tuple[slice,
+                                             slice]]] = None) -> np.ndarray:
     stack = h5[h5dict.stack]
     out = np.zeros(len(shots))
     for i, shot_idx in enumerate(shots):

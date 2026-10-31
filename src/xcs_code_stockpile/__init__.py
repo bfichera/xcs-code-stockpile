@@ -6,7 +6,7 @@ from .filter import (sensible_filter, no_filter, i0_min_max_filter,
                      common_enough_off_type_filter)
 from .differential_correlation import (differential_correlation,
                                        differential_twotime)
-from .trxrd import calc_trxrd_stats, save_movie
+from .trxrd import calc_trxrd_stats, save_movie, trxrd_ims
 from .static_correlation import calc_static_correlation
 from .rocking import calc_rocking_stats, save_rocking_movie
 from .sanity import (plot_i0_vs_time, plot_intensity_vs_i0,
@@ -21,5 +21,5 @@ __all__ = [
     'calc_static_correlation', 'calc_rocking_stats', 'plot_intensity_vs_i0',
     'plot_i0_vs_time', 'plot_intensity_vs_time', 'plot_detector_image',
     'basic_off_type_encoder', 'plot_roi_image', 'save_rocking_movie',
-    'common_enough_off_type_filter'
+    'common_enough_off_type_filter', 'trxrd_ims'
 ]
