@@ -155,7 +155,7 @@ def trxrd_ims(
     delays = []
     on_ims = []
     off_ims = []
-    for delay_bin, group in metadata.groupby('delay_bin'):
+    for delay_bin, group in metadata.groupby('delay_bin', observed=True):
         on_shots = group[group['laser_off_type'] ==
                          on_type]['shot_idx'].to_numpy()
         off_shots = group[group['laser_off_type'] ==
