@@ -534,6 +534,96 @@ class TrxrdFeatureTestCase(OffTypeMixin, SyntheticRunTestCase):
                 np.sum(np.arange(rows.size) * rows) / rows.sum())
 
 
+class TrxrdImsTestCase(OffTypeMixin, SyntheticRunTestCase):
+
+    def expected_ims(self, metadata, bin_starts, bin_interval, on_label='on',
+                     off_label='off', roi_slices=(slice(None), slice(None))):
+        on_ims, off_ims = [], []
+        for start in bin_starts:
+            in_bin = ((metadata['delay'] >= start) &
+                      (metadata['delay'] < start + bin_interval))
+            frames = []
+            for label in (on_label, off_label):
+                group = metadata[in_bin & (metadata['laser_off_type'] ==
+                                           label)]
+                shots = group['shot_idx'].to_numpy()
+                frames.append(self.stack[shots][(slice(None), *roi_slices)]
+                              .mean(axis=0) / group['i0'].mean())
+            on_ims.append(frames[0])
+            off_ims.append(frames[1])
+        return np.array(on_ims), np.array(off_ims)
+
+    def test_values_match_numpy(self):
+        delays, on_ims, off_ims = xcs.trxrd_ims(self.h5, self.h5dict,
+                                                self.metadata, None, 10)
+        starts = np.arange(-20., 41., 10.)
+        np.testing.assert_allclose(delays, starts)
+        expected_on, expected_off = self.expected_ims(self.metadata, starts,
+                                                      10)
+        self.assertEqual(on_ims.shape, (len(starts), 100, 100))
+        self.assertEqual(off_ims.shape, (len(starts), 100, 100))
+        np.testing.assert_allclose(on_ims, expected_on)
+        np.testing.assert_allclose(off_ims, expected_off)
+
+    def test_filter_is_applied(self):
+        delays, on_ims, off_ims = xcs.trxrd_ims(
+            self.h5, self.h5dict, self.metadata, self.shot_filter, 10)
+        metadata = self.metadata[self.shot_filter]
+        expected_on, expected_off = self.expected_ims(metadata, delays, 10)
+        np.testing.assert_allclose(on_ims, expected_on)
+        np.testing.assert_allclose(off_ims, expected_off)
+
+    def test_roi_list_and_slices_agree(self):
+        roi = [40, 60, 30, 70]
+        delays, on_ims, off_ims = xcs.trxrd_ims(self.h5, self.h5dict,
+                                                self.metadata, None, 20,
+                                                roi=roi)
+        self.assertEqual(on_ims.shape[1:], (40, 20))
+        expected_on, expected_off = self.expected_ims(
+            self.metadata, delays, 20,
+            roi_slices=(slice(30, 70), slice(40, 60)))
+        np.testing.assert_allclose(on_ims, expected_on)
+        np.testing.assert_allclose(off_ims, expected_off)
+        _, on_slices, off_slices = xcs.trxrd_ims(
+            self.h5, self.h5dict, self.metadata, None, 20,
+            roi=(slice(30, 70), slice(40, 60)))
+        np.testing.assert_allclose(on_slices, on_ims)
+        np.testing.assert_allclose(off_slices, off_ims)
+
+    def test_empty_delay_bins_are_skipped(self):
+        delay = self.metadata['delay']
+        keep = (delay < -10) | (delay >= 20)
+        delays, on_ims, off_ims = xcs.trxrd_ims(self.h5, self.h5dict,
+                                                self.metadata, keep, 10)
+        np.testing.assert_allclose(delays, [-20., 20., 30., 40.])
+        self.assertEqual(on_ims.shape[0], 4)
+        self.assertFalse(np.isnan(on_ims).any())
+        self.assertFalse(np.isnan(off_ims).any())
+
+    def test_custom_labels_in_either_order(self):
+        reference = xcs.trxrd_ims(self.h5, self.h5dict, self.metadata, None,
+                                  10)
+        metadata = self.metadata.copy()
+        metadata['laser_off_type'] = np.where(metadata['laser_on'],
+                                              'pump_on', 'pump_off')
+        for first_shot in (0, 1):
+            keep = metadata['shot_idx'] >= first_shot
+            ref = xcs.trxrd_ims(self.h5, self.h5dict, self.metadata, keep,
+                                10)
+            result = xcs.trxrd_ims(self.h5, self.h5dict, metadata, keep, 10)
+            for a, b in zip(result, ref):
+                np.testing.assert_allclose(a, b)
+        self.assertEqual(len(reference), 3)
+
+    def test_requires_exactly_two_off_types(self):
+        with self.assertRaises(NotImplementedError):
+            xcs.trxrd_ims(self.h5, self.h5dict, self.encoded_metadata(),
+                          None, 10)
+        only_on = self.metadata['laser_on']
+        with self.assertRaises(NotImplementedError):
+            xcs.trxrd_ims(self.h5, self.h5dict, self.metadata, only_on, 10)
+
+
 class SaveMovieTestCase(OffTypeMixin, SyntheticRunTestCase):
 
     def capture(self, module, func, *args, **kwargs):

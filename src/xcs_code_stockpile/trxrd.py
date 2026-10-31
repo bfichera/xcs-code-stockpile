@@ -111,7 +111,7 @@ def trxrd_ims(
     h5: h5py.File,
     h5dict: H5Dictionary,
     metadata: pd.DataFrame,
-    filter: Union[np.ndarray, pd.Series],
+    filter: Union[np.ndarray, pd.Series, None],
     bin_interval: float,
     roi: Optional[Union[list[int], tuple[slice, slice]]] = None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -124,7 +124,8 @@ def trxrd_ims(
         h5dict: Mapping whose ``stack`` field identifies the detector dataset.
         metadata: Per-shot metadata with ``shot_idx``, ``delay``, ``i0`` and
             ``laser_off_type`` columns.
-        filter: Boolean array or Series selecting metadata rows.
+        filter: Boolean array or Series selecting metadata rows. `None`
+            keeps all rows.
         bin_interval: Delay bin width, in the units of ``delay``.
         roi: Detector region as ``[x0, x1, y0, y1]`` or a
             ``(row_slice, column_slice)`` tuple. `None` selects the full frame.
@@ -136,7 +137,10 @@ def trxrd_ims(
     # TODO
     # Really this can be generalized to more than two off types but I don't
     # have time right now
-    metadata = metadata[filter].copy()
+    if filter is not None:
+        metadata = metadata[filter].copy()
+    else:
+        metadata = metadata.copy()
     _ensure_two_off_types(metadata)
     possible_types = metadata['laser_off_type'].unique()
     on_type = (possible_types[0]
@@ -212,7 +216,8 @@ def save_movie(h5: h5py.File,
         on_types: ``laser_off_type`` values to use as the "on" images.
         off_types: ``laser_off_type`` values to use as the "off" images.
     """
-    metadata = metadata[filter].copy()
+    if filter is not None:
+        metadata = metadata[filter].copy()
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
     bins = _bin_edges(delay, bin_interval)
