@@ -56,11 +56,12 @@ def slow_mean(
                                              slice]]] = None) -> np.ndarray:
     stack = h5[h5dict.stack]
     shape = stack[0, *roi].shape
+    if len(shots) == 0:
+        return np.full(shape, np.nan)
     out = np.zeros(shape)
     n = len(shots)
-    for i in range(h5[h5dict.stack].shape[0]):
-        if i in shots:
-            out += stack[i, *roi] / n
+    for i in shots:
+        out += stack[i, *roi] / n
     return out
 
 
@@ -73,10 +74,11 @@ def slow_sum(
                                              slice]]] = None) -> np.ndarray:
     stack = h5[h5dict.stack]
     shape = h5[h5dict.stack][0, *roi].shape
+    if len(shots) == 0:
+        return np.full(shape, np.nan)
     out = np.zeros(shape)
-    for i in range(h5[h5dict.stack].shape[0]):
-        if i in shots:
-            out += stack[i, *roi]
+    for i in shots:
+        out += stack[i, *roi]
     return out
 
 

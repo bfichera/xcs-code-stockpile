@@ -115,7 +115,7 @@ def trxrd_ims(
     bin_interval: float,
     roi: Optional[Union[list[int], tuple[slice, slice]]] = None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Output an n_frames x n_i x n_j array of images.
+    """Output delays, on images, and off images from a delay scan.
 
     Frames are mean images, normalized by ``i0``, one per delay bin.
 
@@ -139,12 +139,10 @@ def trxrd_ims(
     metadata = metadata[filter].copy()
     _ensure_two_off_types(metadata)
     possible_types = metadata['laser_off_type'].unique()
-    on_type = [
-        possible_types[0] if 'on' in possible_types[0] else possible_types[1]
-    ]
-    off_type = [
-        possible_types[0] if 'off' in possible_types[0] else possible_types[1]
-    ]
+    on_type = (possible_types[0]
+               if 'on' in possible_types[0] else possible_types[1])
+    off_type = (possible_types[0]
+                if 'off' in possible_types[0] else possible_types[1])
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
     bins = _bin_edges(delay, bin_interval)
