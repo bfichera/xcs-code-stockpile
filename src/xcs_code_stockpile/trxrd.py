@@ -15,7 +15,7 @@ from ._utils import (parsed_roi, save_array_to_movie, _bin_edges, _bin_labels,
 
 
 def _ensure_two_off_types(metadata):
-    if metadata['laser_off_type'].nunique() > 2:
+    if metadata['laser_off_type'].nunique() != 2:
         raise NotImplementedError('Only implemented for two off types'
                                   ' (laser on, and laser off)')
 
@@ -114,7 +114,7 @@ def trxrd_ims(
     filter: Union[np.ndarray, pd.Series],
     bin_interval: float,
     roi: Optional[Union[list[int], tuple[slice, slice]]] = None
-) -> tuple[np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Output an n_frames x n_i x n_j array of images.
 
     Frames are mean images, normalized by ``i0``, one per delay bin.
@@ -175,9 +175,9 @@ def trxrd_ims(
         on_ims.append(mean_normalized_on_im)
         off_ims.append(mean_normalized_off_im)
 
-        delays = np.array(delays)
-        on_ims = np.array(on_ims)
-        off_ims = np.array(off_ims)
+    delays = np.array(delays)
+    on_ims = np.array(on_ims)
+    off_ims = np.array(off_ims)
 
     return delays, on_ims, off_ims
 
