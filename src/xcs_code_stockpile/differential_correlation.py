@@ -257,9 +257,9 @@ def differential_correlation(reversibility_type: str, *args: Any,
 
     Returns:
         A Series containing mean correlations, indexed by the left edge of
-        each delay bin. Strong and weak strategies compare within lab-time
-        bins; the no-reversibility strategy compares each pump-on shot with
-        its most recent preceding pump-off shot.
+            each delay bin. Strong and weak strategies compare within lab-time
+            bins; the no-reversibility strategy compares each pump-on shot with
+            its most recent preceding pump-off shot.
 
     Raises:
         NotImplementedError: If a reversibility or denominator type is not
@@ -358,8 +358,8 @@ def differential_twotime(reversibility_type: str, *args: Any,
 
     Returns:
         A symmetric array with one row and column per delay bin. Entries are
-        NaN on the diagonal and where two delay bins never share a lab-time
-        bin.
+            NaN on the diagonal and where two delay bins never share a lab-time
+            bin.
 
     Raises:
         NotImplementedError: If `reversibility_type` is not supported.

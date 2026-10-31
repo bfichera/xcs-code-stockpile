@@ -25,7 +25,7 @@ def fit_linear_i_vs_i0(
 
     Returns:
         A tuple ``(beta, intercept, r2)`` of the slope, intercept and R^2
-        of the fit.
+            of the fit.
     """
     if filter is not None:
         metadata = metadata[filter]

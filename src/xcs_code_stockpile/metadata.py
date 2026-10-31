@@ -40,8 +40,9 @@ def create_metadata(h5: h5py.File,
 
     Returns:
         A DataFrame with ``intensity_in_roi``, ``shot_idx``, ``event_time``,
-        ``laser_on``, ``xray_on``, ``i0``, ``delay`` and ``laser_off_type``
-        columns, plus any extra `h5dict` fields. The run number is available as ``result.attrs["run"]``.
+            ``laser_on``, ``xray_on``, ``i0``, ``delay`` and ``laser_off_type``
+            columns, plus any extra `h5dict` fields. The run number is
+            available as ``result.attrs["run"]``.
 
     Raises:
         ValueError: If `nan_policy` is invalid or detector data contains NaNs

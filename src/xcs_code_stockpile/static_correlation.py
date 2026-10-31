@@ -76,9 +76,9 @@ def calc_static_correlation(
 
     Returns:
         A one-dimensional NumPy array indexed by retained-frame lag. Element
-        zero is NaN. If `ret_twotime` is true, returns
-        ``(g2_minus_one, twotime)`` instead. Lag is retained-frame number, not
-        physical elapsed time.
+            zero is NaN. If `ret_twotime` is true, returns
+            ``(g2_minus_one, twotime)`` instead. Lag is retained-frame
+            number, not physical elapsed time.
 
     Raises:
         NotImplementedError: If `denominator_type` is unsupported.

@@ -34,8 +34,8 @@ def calc_rocking_stats(
 
     Returns:
         A DataFrame indexed by scan value with ``intensity_mean``,
-        ``intensity_stderr``, and ``n_shots`` columns. Intensities are
-        normalized by ``i0``.
+            ``intensity_stderr``, and ``n_shots`` columns. Intensities are
+            normalized by ``i0``.
     """
     if filter is not None:
         metadata = metadata[filter].copy()

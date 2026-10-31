@@ -52,11 +52,11 @@ def calc_trxrd_stats(h5: h5py.File,
 
     Returns:
         A DataFrame indexed by delay-bin left edge. Each column is prefixed
-        by the ``laser_off_type`` it describes, e.g. ``on_intensity_mean``.
-        The columns are ``intensity_mean``, ``intensity_stderr``, ``n_shots``,
-        ``com_i``, ``com_j``, ``fwhm_i`` and ``fwhm_j``. Intensities are
-        normalized by mean ``i0``. Centers and widths are in ROI-relative
-        pixels.
+            by the ``laser_off_type`` it describes, e.g.
+            ``on_intensity_mean``. The columns are ``intensity_mean``,
+            ``intensity_stderr``, ``n_shots``, ``com_i``, ``com_j``,
+            ``fwhm_i`` and ``fwhm_j``. Intensities are normalized by mean
+            ``i0``. Centers and widths are in ROI-relative pixels.
     """
     # First we apply the filter
 
@@ -132,7 +132,7 @@ def trxrd_ims(
 
     Returns:
         A tuple containing (1) delays, (2) the on images, and (3) the off
-        images; i.e. `delays, on_ims, off_ims = trxrd_ims(...)`
+            images; i.e. `delays, on_ims, off_ims = trxrd_ims(...)`
     """
     # TODO
     # Really this can be generalized to more than two off types but I don't

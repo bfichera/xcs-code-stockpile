@@ -65,8 +65,8 @@ def sensible_filter(metadata: pd.DataFrame, i0_minimum_percentile: float,
 
     Returns:
         A boolean Series aligned with `metadata`. False entries include X-ray
-        off shots, zero or non-finite ``i0``, non-finite ROI intensity, and
-        values outside the requested percentile ranges.
+            off shots, zero or non-finite ``i0``, non-finite ROI intensity, and
+            values outside the requested percentile ranges.
     """
     valid_input = (metadata['xray_on'] & (metadata['i0'] != 0)
                    & np.isfinite(metadata['i0'])

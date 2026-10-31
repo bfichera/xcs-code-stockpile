@@ -70,7 +70,7 @@ def load_smalldata(run_number: int, proposal_number: int,
 
     Returns:
         An open SmartH5 file in read-only mode. The caller must close the file;
-        using the result as a context manager is recommended.
+            using the result as a context manager is recommended.
     """
     root = Path('/sdf/data/lcls/ds/xcs')
     path = (root / f'xcs{proposal_number}/hdf5/smalldata/'
