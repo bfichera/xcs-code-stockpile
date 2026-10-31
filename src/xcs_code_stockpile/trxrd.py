@@ -10,7 +10,8 @@ import pandas as pd
 from scipy.ndimage import center_of_mass
 
 from .datahandler import H5Dictionary
-from ._utils import parsed_roi, save_array_to_movie, _bin_edges, _bin_labels
+from ._utils import (parsed_roi, save_array_to_movie, _bin_edges, _bin_labels,
+                     slow_mean)
 
 
 def _ensure_two_off_types(metadata):
@@ -135,10 +136,15 @@ def trxrd_ims(
     # TODO
     # Really this can be generalized to more than two off types but I don't
     # have time right now
-    on_types = ['on']
-    off_types = ['off']
     metadata = metadata[filter].copy()
     _ensure_two_off_types(metadata)
+    possible_types = metadata['laser_off_type'].unique()
+    on_type = [
+        possible_types[0] if 'on' in possible_types[0] else possible_types[1]
+    ]
+    off_type = [
+        possible_types[0] if 'off' in possible_types[0] else possible_types[1]
+    ]
     # Then we bin the data
     delay = metadata['delay'].to_numpy()
     bins = _bin_edges(delay, bin_interval)
@@ -148,38 +154,30 @@ def trxrd_ims(
                         labels=_bin_labels(bins))
     metadata['delay_bin'] = delay_bins
 
-    for on_type, off_type in product(on_types, off_types):
-        stack = h5[h5dict.stack][..., *roi]
-        delays = []
-        on_ims = []
-        off_ims = []
-        diff_ims = []
-        for delay_bin, group in metadata.groupby('delay_bin'):
-            on_shots = group[group['laser_off_type'] ==
-                             on_type]['shot_idx'].to_numpy()
-            off_shots = group[group['laser_off_type'] ==
-                              off_type]['shot_idx'].to_numpy()
-            on_substack = stack[on_shots, ...]
-            off_substack = stack[off_shots, ...]
-            on_mean_i0 = np.mean(group.loc[group['laser_off_type'] == on_type,
-                                           'i0'])
-            off_mean_i0 = np.mean(
-                group.loc[group['laser_off_type'] == off_type, 'i0'])
-            mean_on_im = np.mean(on_substack, axis=0)
-            mean_off_im = np.mean(off_substack, axis=0)
-            mean_normalized_on_im = mean_on_im / on_mean_i0
-            mean_normalized_off_im = mean_off_im / off_mean_i0
+    delays = []
+    on_ims = []
+    off_ims = []
+    for delay_bin, group in metadata.groupby('delay_bin'):
+        on_shots = group[group['laser_off_type'] ==
+                         on_type]['shot_idx'].to_numpy()
+        off_shots = group[group['laser_off_type'] ==
+                          off_type]['shot_idx'].to_numpy()
+        on_mean_i0 = np.mean(group.loc[group['laser_off_type'] == on_type,
+                                       'i0'])
+        off_mean_i0 = np.mean(group.loc[group['laser_off_type'] == off_type,
+                                        'i0'])
+        mean_on_im = slow_mean(h5, h5dict, on_shots, roi=roi)
+        mean_off_im = slow_mean(h5, h5dict, off_shots, roi=roi)
+        mean_normalized_on_im = mean_on_im / on_mean_i0
+        mean_normalized_off_im = mean_off_im / off_mean_i0
 
-            delays.append(delay_bin)
-            on_ims.append(mean_normalized_on_im)
-            off_ims.append(mean_normalized_off_im)
-            diff_ims.append(mean_normalized_on_im / mean_normalized_off_im -
-                            1.0)
+        delays.append(delay_bin)
+        on_ims.append(mean_normalized_on_im)
+        off_ims.append(mean_normalized_off_im)
 
         delays = np.array(delays)
         on_ims = np.array(on_ims)
         off_ims = np.array(off_ims)
-        diff_ims = np.array(diff_ims)
 
     return delays, on_ims, off_ims
 
